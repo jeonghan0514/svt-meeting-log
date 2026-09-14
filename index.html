@@ -22,13 +22,13 @@
           <span v-else class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">☁️ Google 雲端連線</span>
         </div>
         <button 
-          @click="showAddModal = true"
+          @click="openAddModal"
           class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
           <span>✨ 新增見面紀錄</span>
         </button>
       </div>
 
-      <!-- 頁籤分頁切換 -->
+      <!-- 頁籤切換 -->
       <div class="max-w-4xl mx-auto px-4 flex border-t border-pink-50 text-sm font-medium">
         <button 
           @click="currentTab = 'dashboard'"
@@ -147,9 +147,13 @@
                 </p>
               </div>
 
-              <div class="mt-3 flex justify-end">
-                <button @click="deleteRecord(rec.id)" class="text-xs text-red-400 hover:text-red-600 hover:underline">
-                  刪除此紀錄
+              <!-- 按鈕區：編輯與刪除 -->
+              <div class="mt-3 flex justify-end gap-3 border-t border-gray-50 pt-2">
+                <button @click="openEditModal(rec)" class="text-xs text-blue-500 hover:text-blue-700 font-medium hover:underline flex items-center gap-0.5">
+                  ✏️ 編輯
+                </button>
+                <button @click="deleteRecord(rec.id)" class="text-xs text-red-400 hover:text-red-600 font-medium hover:underline flex items-center gap-0.5">
+                  🗑️ 刪除
                 </button>
               </div>
             </div>
@@ -165,11 +169,11 @@
 
     </main>
 
-    <!-- 新增紀錄彈窗 (Modal) -->
+    <!-- 新增 / 編輯紀錄彈窗 (Modal) -->
     <div v-if="showAddModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-pink-100 max-h-[90vh] overflow-y-auto">
         <h3 class="text-lg font-bold mb-4 text-gray-800 flex items-center gap-2">
-          <span>🎉</span> 新增見面紀錄
+          <span>{{ isEditMode ? '✏️ 編輯見面紀錄' : '🎉 新增見面紀錄' }}</span>
         </h3>
 
         <div class="space-y-4 text-sm">
@@ -234,8 +238,8 @@
         <div class="flex justify-end gap-2 mt-6">
           <button @click="showAddModal = false" class="px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 text-sm">取消</button>
           <button @click="saveRecord" :disabled="submitting" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90 flex items-center gap-1">
-            <span v-if="submitting">儲存中...</span>
-            <span v-else>儲存紀錄</span>
+            <span v-if="submitting">更新儲存中...</span>
+            <span v-else>{{ isEditMode ? '儲存修改' : '儲存紀錄' }}</span>
           </button>
         </div>
       </div>
@@ -244,7 +248,6 @@
   </div>
 
   <script>
-    // 你的專屬 Google Apps Script 網頁應用程式 URL
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyzrbWG6bWFmgSOBz6mQx0WZILrN59mn1cl5LtwIEr0ByCH-TTK4xckAkhgYZBP7pyPVw/exec";
 
     const { createApp, ref, computed, onMounted } = Vue
@@ -272,10 +275,12 @@
         const records = ref([])
         const sortBy = ref('age')
         const showAddModal = ref(false)
+        const isEditMode = ref(false)
         const loading = ref(false)
         const submitting = ref(false)
 
         const newRecord = ref({
+          id: null,
           title: '',
           date: new Date().toISOString().split('T')[0],
           type: '演唱會',
@@ -334,6 +339,34 @@
           return [...records.value].sort((a, b) => new Date(b.date) - new Date(a.date))
         })
 
+        const openAddModal = () => {
+          isEditMode.value = false
+          newRecord.value = {
+            id: null,
+            title: '',
+            date: new Date().toISOString().split('T')[0],
+            type: '演唱會',
+            selectedMemberIds: [],
+            note: '',
+            photoBase64: ''
+          }
+          showAddModal.value = true
+        }
+
+        const openEditModal = (rec) => {
+          isEditMode.value = true
+          newRecord.value = {
+            id: rec.id,
+            title: rec.title,
+            date: rec.date,
+            type: rec.type,
+            selectedMemberIds: [...rec.selectedMemberIds],
+            note: rec.note || '',
+            photoBase64: rec.photo || ''
+          }
+          showAddModal.value = true
+        }
+
         const selectAllMembers = () => {
           if (newRecord.value.selectedMemberIds.length === 13) {
             newRecord.value.selectedMemberIds = []
@@ -386,11 +419,9 @@
           }
 
           submitting.value = true
-          const recordId = Date.now()
-
           const payload = {
-            action: 'add',
-            id: recordId,
+            action: isEditMode.value ? 'update' : 'add',
+            id: isEditMode.value ? newRecord.value.id : Date.now(),
             title: newRecord.value.title,
             date: newRecord.value.date,
             type: newRecord.value.type,
@@ -400,34 +431,21 @@
           }
 
           try {
-            const res = await fetch(GAS_API_URL, {
+            await fetch(GAS_API_URL, {
               method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             })
-            const result = await res.json()
             
-            records.value.push({
-              id: recordId,
-              title: newRecord.value.title,
-              date: newRecord.value.date,
-              type: newRecord.value.type,
-              selectedMemberIds: newRecord.value.selectedMemberIds,
-              note: newRecord.value.note,
-              photo: result.photoUrl || ''
-            })
-            recalculateMemberStats()
-
-            newRecord.value = {
-              title: '',
-              date: new Date().toISOString().split('T')[0],
-              type: '演唱會',
-              selectedMemberIds: [],
-              note: '',
-              photoBase64: ''
-            }
             showAddModal.value = false
+
+            setTimeout(() => {
+              fetchRecordsFromGAS()
+            }, 1500)
+
           } catch (err) {
-            alert('儲存失敗，請檢查 GAS 部署權限！')
+            alert('儲存失敗，請重試！')
           } finally {
             submitting.value = false
           }
@@ -440,21 +458,24 @@
           try {
             await fetch(GAS_API_URL, {
               method: 'POST',
+              mode: 'no-cors',
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'delete', id: recordId })
             })
-            records.value = records.value.filter(r => r.id !== recordId)
-            recalculateMemberStats()
+            
+            setTimeout(() => {
+              fetchRecordsFromGAS()
+            }, 1000)
           } catch (err) {
             alert('刪除失敗！')
-          } finally {
             loading.value = false
           }
         }
 
         return {
-          currentTab, members, records, sortBy, showAddModal, newRecord, loading, submitting,
+          currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
+          openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
         }
       }
     }).mount('#app')

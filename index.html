@@ -13,8 +13,8 @@
 
   <div id="app">
     <!-- 頂部 Header -->
-    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-pink-100 shadow-sm">
-      <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-pink-100 shadow-sm">
+      <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-2">
           <span class="text-2xl">💎</span>
           <h1 class="text-xl font-bold bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
@@ -27,76 +27,165 @@
           <span>✨ 新增見面紀錄</span>
         </button>
       </div>
+
+      <!-- 頁籤分頁切換 (Navigation Bar) -->
+      <div class="max-w-4xl mx-auto px-4 flex border-t border-pink-50 text-sm font-medium">
+        <button 
+          @click="currentTab = 'dashboard'"
+          :class="['py-2.5 px-4 border-b-2 transition-all cursor-pointer', currentTab === 'dashboard' ? 'border-pink-400 text-pink-500 font-bold' : 'border-transparent text-gray-400 hover:text-gray-600']">
+          成員見面榜 👑
+        </button>
+        <button 
+          @click="currentTab = 'history'"
+          :class="['py-2.5 px-4 border-b-2 transition-all cursor-pointer flex items-center gap-1', currentTab === 'history' ? 'border-blue-400 text-blue-500 font-bold' : 'border-transparent text-gray-400 hover:text-gray-600']">
+          全部活動紀錄 📸
+          <span class="bg-blue-100 text-blue-600 text-xs px-1.5 py-0.2 rounded-full">{{ records.length }}</span>
+        </button>
+      </div>
     </header>
 
     <main class="max-w-4xl mx-auto px-4 pt-6">
       
-      <!-- 統計 Dashboard -->
-      <section class="grid grid-cols-3 gap-3 mb-6">
-        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-pink-100 text-center">
-          <p class="text-xs text-gray-500 mb-1">總見面次數</p>
-          <p class="text-2xl font-black text-pink-500">{{ totalMeetCount }} <span class="text-xs font-normal">次</span></p>
-        </div>
-        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-blue-100 text-center">
-          <p class="text-xs text-gray-500 mb-1">已解鎖成員</p>
-          <p class="text-2xl font-black text-blue-500">{{ unlockedMembersCount }} <span class="text-xs font-normal">/ 13</span></p>
-        </div>
-        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-purple-100 text-center">
-          <p class="text-xs text-gray-500 mb-1">累積活動數</p>
-          <p class="text-2xl font-black text-purple-500">{{ records.length }} <span class="text-xs font-normal">場</span></p>
-        </div>
-      </section>
+      <!-- ================= 頁籤 1: 成員 Dashboard ================= -->
+      <div v-if="currentTab === 'dashboard'">
+        <!-- 統計 Dashboard -->
+        <section class="grid grid-cols-3 gap-3 mb-6">
+          <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-pink-100 text-center">
+            <p class="text-xs text-gray-500 mb-1">總見面次數</p>
+            <p class="text-2xl font-black text-pink-500">{{ totalMeetCount }} <span class="text-xs font-normal">次</span></p>
+          </div>
+          <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-blue-100 text-center">
+            <p class="text-xs text-gray-500 mb-1">已解鎖成員</p>
+            <p class="text-2xl font-black text-blue-500">{{ unlockedMembersCount }} <span class="text-xs font-normal">/ 13</span></p>
+          </div>
+          <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-purple-100 text-center">
+            <p class="text-xs text-gray-500 mb-1">累積活動數</p>
+            <p class="text-2xl font-black text-purple-500">{{ records.length }} <span class="text-xs font-normal">場</span></p>
+          </div>
+        </section>
 
-      <!-- 控制欄：排序 -->
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="font-bold text-gray-700 text-lg flex items-center gap-2">
-          <span>成員見面榜</span>
-        </h2>
-        <select v-model="sortBy" class="bg-white border border-gray-200 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300">
-          <option value="age">依年齡排序</option>
-          <option value="count">依見面次數 (高→低)</option>
-        </select>
+        <!-- 控制欄：排序 -->
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-bold text-gray-700 text-lg">成員見面榜</h2>
+          <select v-model="sortBy" class="bg-white border border-gray-200 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300">
+            <option value="age">依年齡排序</option>
+            <option value="count">依見面次數 (高→低)</option>
+          </select>
+        </div>
+
+        <!-- 成員卡片列表 Grid -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          <div 
+            v-for="member in sortedMembers" 
+            :key="member.id"
+            :class="[
+              'bg-white rounded-2xl p-4 border transition-all duration-300 relative overflow-hidden flex flex-col items-center justify-between shadow-sm',
+              member.count > 0 ? 'border-pink-200 hover:shadow-md hover:-translate-y-1' : 'border-gray-100 opacity-60 grayscale hover:grayscale-0'
+            ]"
+          >
+            <!-- 次數 Badge -->
+            <div class="absolute top-2 right-2 bg-pink-100 text-pink-600 text-xs font-bold px-2 py-0.5 rounded-full">
+              {{ member.count }} 次
+            </div>
+
+            <!-- 成員大頭圓框 -->
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-200 to-blue-200 flex items-center justify-center text-xl font-bold text-white mb-2 shadow-inner">
+              {{ member.name }}
+            </div>
+
+            <!-- 成員韓文名 -->
+            <div class="text-center">
+              <h3 class="font-bold text-gray-800 text-base">{{ member.name }}</h3>
+              <p class="text-xs text-gray-400">{{ member.englishName }}</p>
+            </div>
+
+            <!-- 最近見面標籤 -->
+            <div class="mt-3 w-full text-center">
+              <span v-if="member.count > 0" class="text-[10px] text-gray-500 block truncate">
+                📍 {{ member.lastMetDate || '尚無紀錄' }}
+              </span>
+              <span v-else class="text-[10px] text-gray-400 block">尚未解鎖</span>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <!-- 成員卡片列表 Grid -->
-      <section class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-        <div 
-          v-for="member in sortedMembers" 
-          :key="member.id"
-          :class="[
-            'bg-white rounded-2xl p-4 border transition-all duration-300 relative overflow-hidden flex flex-col items-center justify-between shadow-sm',
-            member.count > 0 ? 'border-pink-200 hover:shadow-md hover:-translate-y-1' : 'border-gray-100 opacity-60 grayscale hover:grayscale-0'
-          ]"
-        >
-          <!-- 次數 Badge -->
-          <div class="absolute top-2 right-2 bg-pink-100 text-pink-600 text-xs font-bold px-2 py-0.5 rounded-full">
-            {{ member.count }} 次
-          </div>
+      <!-- ================= 頁籤 2: 全部活動歷史頁面 ================= -->
+      <div v-if="currentTab === 'history'">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
+          <span class="text-xs text-gray-400">共 {{ records.length }} 筆見面回憶</span>
+        </div>
 
-          <!-- 成員大頭貼預留區 -->
-          <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-200 to-blue-200 flex items-center justify-center text-xl font-bold text-white mb-2 shadow-inner">
-            {{ member.name[0] }}
-          </div>
+        <!-- 歷史紀錄列表 -->
+        <div v-if="records.length > 0" class="space-y-4">
+          <div 
+            v-for="rec in sortedRecords" 
+            :key="rec.id" 
+            class="bg-white rounded-2xl p-5 border border-pink-100 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4">
+            
+            <!-- 照片預覽區 -->
+            <div v-if="rec.photo" class="w-full md:w-40 h-40 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100 border border-gray-100">
+              <img :src="rec.photo" alt="活動照片" class="w-full h-full object-cover">
+            </div>
 
-          <!-- 成員名字 -->
-          <div class="text-center">
-            <h3 class="font-bold text-gray-800">{{ member.name }}</h3>
-            <p class="text-xs text-gray-400">{{ member.englishName }}</p>
-          </div>
+            <!-- 活動文字內容 -->
+            <div class="flex-grow flex flex-col justify-between">
+              <div>
+                <div class="flex justify-between items-start gap-2">
+                  <h3 class="font-bold text-gray-800 text-lg">{{ rec.title }}</h3>
+                  <span class="bg-pink-100 text-pink-600 text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
+                    {{ rec.type }}
+                  </span>
+                </div>
+                
+                <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <span>📅 {{ rec.date }}</span>
+                </p>
 
-          <!-- 最近見面標籤 -->
-          <div class="mt-3 w-full text-center">
-            <span v-if="member.count > 0" class="text-[10px] text-gray-500 block truncate">
-              📍 {{ member.lastMetDate || '尚無紀錄' }}
-            </span>
-            <span v-else class="text-[10px] text-gray-400 block">尚未解鎖</span>
+                <!-- 見到的成員標籤區 -->
+                <div class="mt-3">
+                  <p class="text-xs font-bold text-gray-500 mb-1">見到的成員：</p>
+                  <div class="flex flex-wrap gap-1">
+                    <span 
+                      v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
+                      :key="mName" 
+                      class="bg-blue-50 text-blue-600 border border-blue-100 text-xs px-2 py-0.5 rounded-md font-medium">
+                      {{ mName }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 心得/座位備註 -->
+                <p v-if="rec.note" class="mt-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100 whitespace-pre-line">
+                  {{ rec.note }}
+                </p>
+              </div>
+
+              <!-- 刪除按鈕 -->
+              <div class="mt-3 flex justify-end">
+                <button @click="deleteRecord(rec.id)" class="text-xs text-red-400 hover:text-red-600 hover:underline">
+                  刪除此紀錄
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
-      </section>
+
+        <!-- 尚無資料時的空白提示 -->
+        <div v-else class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-gray-200">
+          <p class="text-4xl mb-2">💎</p>
+          <p class="text-gray-500 font-medium text-sm">還沒有新增任何見面紀錄喔！</p>
+          <button @click="showAddModal = true" class="mt-3 text-xs text-pink-500 font-bold hover:underline">
+            + 立即新增第一筆回憶
+          </button>
+        </div>
+      </div>
 
     </main>
 
-    <!-- 新增紀錄彈窗 (Modal) -->
+    <!-- ================= 新增紀錄彈窗 (Modal) ================= -->
     <div v-if="showAddModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-pink-100 max-h-[90vh] overflow-y-auto">
         <h3 class="text-lg font-bold mb-4 text-gray-800 flex items-center gap-2">
@@ -104,11 +193,13 @@
         </h3>
 
         <div class="space-y-4 text-sm">
+          <!-- 活動名稱 -->
           <div>
             <label class="block text-xs font-bold text-gray-600 mb-1">活動名稱</label>
             <input v-model="newRecord.title" type="text" placeholder="例如：FOLLOW Tour 演唱會 / 克拉島" class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300" />
           </div>
 
+          <!-- 日期與類型 -->
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-xs font-bold text-gray-600 mb-1">日期</label>
@@ -126,6 +217,19 @@
             </div>
           </div>
 
+          <!-- 上傳照片 -->
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">活動現場照片 (選擇性)</label>
+            <input type="file" @change="handlePhotoUpload" accept="image/*" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100" />
+            
+            <!-- 選擇照片後的即時預覽 -->
+            <div v-if="newRecord.photo" class="mt-2 w-full h-32 rounded-xl overflow-hidden bg-gray-50 border border-gray-200 relative">
+              <img :src="newRecord.photo" class="w-full h-full object-cover">
+              <button @click="newRecord.photo = ''" class="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">移除照片</button>
+            </div>
+          </div>
+
+          <!-- 見到的成員 (複選) -->
           <div>
             <div class="flex justify-between items-center mb-1">
               <label class="block text-xs font-bold text-gray-600">見到的成員</label>
@@ -146,12 +250,14 @@
             </div>
           </div>
 
+          <!-- 座位 / 心得 -->
           <div>
             <label class="block text-xs font-bold text-gray-600 mb-1">座位 / 心得筆記</label>
-            <textarea v-model="newRecord.note" rows="2" placeholder="紀錄這次見面的精彩瞬間..." class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300"></textarea>
+            <textarea v-model="newRecord.note" rows="2" placeholder="紀錄這一天發生的幸福小細節..." class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300"></textarea>
           </div>
         </div>
 
+        <!-- 按鈕區 -->
         <div class="flex justify-end gap-2 mt-6">
           <button @click="showAddModal = false" class="px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 text-sm">取消</button>
           <button @click="saveRecord" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90">儲存紀錄</button>
@@ -167,21 +273,22 @@
     createApp({
       setup() {
         const defaultMembers = [
-  { id: 1, name: '쿱스', englishName: 'S.COUPS', count: 0, lastMetDate: '' },
-  { id: 2, name: '정한', englishName: 'JEONGHAN', count: 0, lastMetDate: '' },
-  { id: 3, name: '슈아', englishName: 'JOSHUA', count: 0, lastMetDate: '' },
-  { id: 4, name: '준', englishName: 'JUN', count: 0, lastMetDate: '' },
-  { id: 5, name: '호시', englishName: 'HOSHI', count: 0, lastMetDate: '' },
-  { id: 6, name: '원우', englishName: 'WONWOO', count: 0, lastMetDate: '' },
-  { id: 7, name: '우지', englishName: 'WOOZI', count: 0, lastMetDate: '' },
-  { id: 8, name: '명호', englishName: 'THE 8', englishName: 'THE 8', count: 0, lastMetDate: '' },
-  { id: 9, name: '민규', englishName: 'MINGYU', count: 0, lastMetDate: '' },
-  { id: 10, name: '도겸', englishName: 'DK', count: 0, lastMetDate: '' },
-  { id: 11, name: '승관', englishName: 'SEUNGKWAN', count: 0, lastMetDate: '' },
-  { id: 12, name: '버논', englishName: 'VERNON', count: 0, lastMetDate: '' },
-  { id: 13, name: '디노', englishName: 'DINO', count: 0, lastMetDate: '' },
-]
+          { id: 1, name: '쿱스', englishName: 'S.COUPS', count: 0, lastMetDate: '' },
+          { id: 2, name: '정한', englishName: 'JEONGHAN', count: 0, lastMetDate: '' },
+          { id: 3, name: '슈아', englishName: 'JOSHUA', count: 0, lastMetDate: '' },
+          { id: 4, name: '준', englishName: 'JUN', count: 0, lastMetDate: '' },
+          { id: 5, name: '호시', englishName: 'HOSHI', count: 0, lastMetDate: '' },
+          { id: 6, name: '원우', englishName: 'WONWOO', count: 0, lastMetDate: '' },
+          { id: 7, name: '우지', englishName: 'WOOZI', count: 0, lastMetDate: '' },
+          { id: 8, name: '명호', englishName: 'THE 8', count: 0, lastMetDate: '' },
+          { id: 9, name: '민규', englishName: 'MINGYU', count: 0, lastMetDate: '' },
+          { id: 10, name: '도겸', englishName: 'DK', count: 0, lastMetDate: '' },
+          { id: 11, name: '승관', englishName: 'SEUNGKWAN', count: 0, lastMetDate: '' },
+          { id: 12, name: '버논', englishName: 'VERNON', count: 0, lastMetDate: '' },
+          { id: 13, name: '디노', englishName: 'DINO', count: 0, lastMetDate: '' },
+        ]
 
+        const currentTab = ref('dashboard') // 'dashboard' 或 'history'
         const members = ref([...defaultMembers])
         const records = ref([])
         const sortBy = ref('age')
@@ -192,23 +299,25 @@
           date: new Date().toISOString().split('T')[0],
           type: '演唱會',
           selectedMemberIds: [],
-          note: ''
+          note: '',
+          photo: ''
         })
 
-        // LocalStorage 同步
+        // 載入 LocalStorage
         onMounted(() => {
-          const savedMembers = localStorage.getItem('svt_members')
-          const savedRecords = localStorage.getItem('svt_records')
+          const savedMembers = localStorage.getItem('svt_members_kr')
+          const savedRecords = localStorage.getItem('svt_records_kr')
           if (savedMembers) members.value = JSON.parse(savedMembers)
           if (savedRecords) records.value = JSON.parse(savedRecords)
         })
 
+        // 自動寫入 LocalStorage
         watch(members, (newVal) => {
-          localStorage.setItem('svt_members', JSON.stringify(newVal))
+          localStorage.setItem('svt_members_kr', JSON.stringify(newVal))
         }, { deep: true })
 
         watch(records, (newVal) => {
-          localStorage.setItem('svt_records', JSON.stringify(newVal))
+          localStorage.setItem('svt_records_kr', JSON.stringify(newVal))
         }, { deep: true })
 
         const totalMeetCount = computed(() => members.value.reduce((acc, m) => acc + m.count, 0))
@@ -222,6 +331,10 @@
           return list
         })
 
+        const sortedRecords = computed(() => {
+          return [...records.value].sort((a, b) => new Date(b.date) - new Date(a.date))
+        })
+
         const selectAllMembers = () => {
           if (newRecord.value.selectedMemberIds.length === 13) {
             newRecord.value.selectedMemberIds = []
@@ -230,36 +343,104 @@
           }
         }
 
+        // 處理照片上傳轉為 Base64 字串
+        const handlePhotoUpload = (e) => {
+          const file = e.target.files[0]
+          if (!file) return
+
+          // 壓縮圖片大小以免 LocalStorage 滿載
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            const img = new Image()
+            img.onload = () => {
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+              
+              const maxWidth = 800
+              let width = img.width
+              let height = img.height
+
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width)
+                width = maxWidth
+              }
+
+              canvas.width = width
+              canvas.height = height
+              ctx.drawImage(img, 0, 0, width, height)
+              
+              // 轉為 Base64
+              newRecord.value.photo = canvas.toDataURL('image/jpeg', 0.7)
+            }
+            img.src = event.target.result
+          }
+          reader.readAsDataURL(file)
+        }
+
+        // 依 ID 列表轉成韓文名字陣列
+        const getMemberNamesByIds = (ids) => {
+          return ids.map(id => {
+            const m = members.value.find(item => item.id === id)
+            return m ? m.name : ''
+          }).filter(Boolean)
+        }
+
+        // 儲存紀錄
         const saveRecord = () => {
           if (!newRecord.value.title || newRecord.value.selectedMemberIds.length === 0) {
             alert('請輸入活動名稱並至少選擇一位成員！')
             return
           }
 
-          records.value.push({ ...newRecord.value, id: Date.now() })
+          const recordId = Date.now()
+          records.value.push({ ...newRecord.value, id: recordId })
 
+          // 更新成員計數
           newRecord.value.selectedMemberIds.forEach(id => {
             const member = members.value.find(m => m.id === id)
             if (member) {
               member.count += 1
-              member.lastMetDate = newRecord.value.date
+              // 若這筆活動的日期比較新，則更新最後見面日期
+              if (!member.lastMetDate || new Date(newRecord.value.date) >= new Date(member.lastMetDate)) {
+                member.lastMetDate = newRecord.value.date
+              }
             }
           })
 
+          // 清空表單
           newRecord.value = {
             title: '',
             date: new Date().toISOString().split('T')[0],
             type: '演唱會',
             selectedMemberIds: [],
-            note: ''
+            note: '',
+            photo: ''
           }
           showAddModal.value = false
         }
 
+        // 刪除紀錄並重新計算次數
+        const deleteRecord = (recordId) => {
+          if (!confirm('確定要刪除這筆見面紀錄嗎？')) return
+
+          const targetRec = records.value.find(r => r.id === recordId)
+          if (targetRec) {
+            // 扣除次數
+            targetRec.selectedMemberIds.forEach(id => {
+              const member = members.value.find(m => m.id === id)
+              if (member && member.count > 0) {
+                member.count -= 1
+              }
+            })
+          }
+
+          records.value = records.value.filter(r => r.id !== recordId)
+        }
+
         return {
-          members, records, sortBy, showAddModal, newRecord,
-          totalMeetCount, unlockedMembersCount, sortedMembers,
-          selectAllMembers, saveRecord
+          currentTab, members, records, sortBy, showAddModal, newRecord,
+          totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
+          selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
         }
       }
     }).mount('#app')

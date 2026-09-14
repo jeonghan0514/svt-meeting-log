@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVT Meeting Log | 見面次數統計小屋</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-white to-blue-50 text-gray-800 min-h-screen pb-12 font-sans">
+
+  <div id="app">
+    <!-- 頂部 Header -->
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-pink-100 shadow-sm">
+      <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <span class="text-2xl">💎</span>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
+            SVT Meeting Log
+          </h1>
+        </div>
+        <button 
+          @click="showAddModal = true"
+          class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
+          <span>✨ 新增見面紀錄</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 pt-6">
+      
+      <!-- 統計 Dashboard -->
+      <section class="grid grid-cols-3 gap-3 mb-6">
+        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-pink-100 text-center">
+          <p class="text-xs text-gray-500 mb-1">總見面次數</p>
+          <p class="text-2xl font-black text-pink-500">{{ totalMeetCount }} <span class="text-xs font-normal">次</span></p>
+        </div>
+        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-blue-100 text-center">
+          <p class="text-xs text-gray-500 mb-1">已解鎖成員</p>
+          <p class="text-2xl font-black text-blue-500">{{ unlockedMembersCount }} <span class="text-xs font-normal">/ 13</span></p>
+        </div>
+        <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-purple-100 text-center">
+          <p class="text-xs text-gray-500 mb-1">累積活動數</p>
+          <p class="text-2xl font-black text-purple-500">{{ records.length }} <span class="text-xs font-normal">場</span></p>
+        </div>
+      </section>
+
+      <!-- 控制欄：排序 -->
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="font-bold text-gray-700 text-lg flex items-center gap-2">
+          <span>成員見面榜</span>
+        </h2>
+        <select v-model="sortBy" class="bg-white border border-gray-200 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300">
+          <option value="age">依年齡排序</option>
+          <option value="count">依見面次數 (高→低)</option>
+        </select>
+      </div>
+
+      <!-- 成員卡片列表 Grid -->
+      <section class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <div 
+          v-for="member in sortedMembers" 
+          :key="member.id"
+          :class="[
+            'bg-white rounded-2xl p-4 border transition-all duration-300 relative overflow-hidden flex flex-col items-center justify-between shadow-sm',
+            member.count > 0 ? 'border-pink-200 hover:shadow-md hover:-translate-y-1' : 'border-gray-100 opacity-60 grayscale hover:grayscale-0'
+          ]"
+        >
+          <!-- 次數 Badge -->
+          <div class="absolute top-2 right-2 bg-pink-100 text-pink-600 text-xs font-bold px-2 py-0.5 rounded-full">
+            {{ member.count }} 次
+          </div>
+
+          <!-- 成員大頭貼預留區 -->
+          <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-200 to-blue-200 flex items-center justify-center text-xl font-bold text-white mb-2 shadow-inner">
+            {{ member.name[0] }}
+          </div>
+
+          <!-- 成員名字 -->
+          <div class="text-center">
+            <h3 class="font-bold text-gray-800">{{ member.name }}</h3>
+            <p class="text-xs text-gray-400">{{ member.englishName }}</p>
+          </div>
+
+          <!-- 最近見面標籤 -->
+          <div class="mt-3 w-full text-center">
+            <span v-if="member.count > 0" class="text-[10px] text-gray-500 block truncate">
+              📍 {{ member.lastMetDate || '尚無紀錄' }}
+            </span>
+            <span v-else class="text-[10px] text-gray-400 block">尚未解鎖</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 新增紀錄彈窗 (Modal) -->
+    <div v-if="showAddModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-pink-100 max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-bold mb-4 text-gray-800 flex items-center gap-2">
+          <span>🎉</span> 新增見面紀錄
+        </h3>
+
+        <div class="space-y-4 text-sm">
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">活動名稱</label>
+            <input v-model="newRecord.title" type="text" placeholder="例如：FOLLOW Tour 演唱會 / 克拉島" class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-gray-600 mb-1">日期</label>
+              <input v-model="newRecord.date" type="date" class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-600 mb-1">類型</label>
+              <select v-model="newRecord.type" class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300">
+                <option value="演唱會">演唱會</option>
+                <option value="見面會">見面會 (克拉島)</option>
+                <option value="簽售會">簽售會</option>
+                <option value="快閃店/展覽">快閃店/展覽</option>
+                <option value="其他">其他</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-bold text-gray-600">見到的成員</label>
+              <button @click="selectAllMembers" type="button" class="text-[11px] text-blue-500 font-medium hover:underline">全選 (13人)</button>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto p-2 bg-gray-50 rounded-xl border border-gray-100">
+              <label 
+                v-for="m in members" 
+                :key="m.id" 
+                :class="[
+                  'flex items-center gap-1.5 p-1.5 rounded-lg border text-xs cursor-pointer transition-all',
+                  newRecord.selectedMemberIds.includes(m.id) ? 'bg-pink-100 border-pink-300 text-pink-700 font-bold' : 'bg-white border-gray-200 text-gray-600'
+                ]"
+              >
+                <input type="checkbox" :value="m.id" v-model="newRecord.selectedMemberIds" class="hidden" />
+                <span>{{ m.name }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-gray-600 mb-1">座位 / 心得筆記</label>
+            <textarea v-model="newRecord.note" rows="2" placeholder="紀錄這次見面的精彩瞬間..." class="w-full border border-gray-200 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-pink-300"></textarea>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 mt-6">
+          <button @click="showAddModal = false" class="px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 text-sm">取消</button>
+          <button @click="saveRecord" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90">儲存紀錄</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, watch, onMounted } = Vue
+
+    createApp({
+      setup() {
+        const defaultMembers = [
+          { id: 1, name: 'S.COUPS', englishName: 'SEUNGCHEOL', count: 0, lastMetDate: '' },
+          { id: 2, name: '淨漢', englishName: 'JEONGHAN', count: 0, lastMetDate: '' },
+          { id: 3, name: '知秀', englishName: 'JOSHUA', count: 0, lastMetDate: '' },
+          { id: 4, name: 'JUN', englishName: 'JUNHUI', count: 0, lastMetDate: '' },
+          { id: 5, name: 'HOSHI', englishName: 'SOONYOUNG', count: 0, lastMetDate: '' },
+          { id: 6, name: '圓佑', englishName: 'WONWOO', count: 0, lastMetDate: '' },
+          { id: 7, name: 'WOOZI', englishName: 'JIHOON', count: 0, lastMetDate: '' },
+          { id: 8, name: 'THE 8', englishName: 'MINGHAO', count: 0, lastMetDate: '' },
+          { id: 9, name: '珉奎', englishName: 'MINGYU', count: 0, lastMetDate: '' },
+          { id: 10, name: 'DK', englishName: 'DOKYEOM', count: 0, lastMetDate: '' },
+          { id: 11, name: '勝寛', englishName: 'SEUNGKWAN', count: 0, lastMetDate: '' },
+          { id: 12, name: 'VERNON', englishName: 'HANSOL', count: 0, lastMetDate: '' },
+          { id: 13, name: 'DINO', englishName: 'CHAN', count: 0, lastMetDate: '' },
+        ]
+
+        const members = ref([...defaultMembers])
+        const records = ref([])
+        const sortBy = ref('age')
+        const showAddModal = ref(false)
+
+        const newRecord = ref({
+          title: '',
+          date: new Date().toISOString().split('T')[0],
+          type: '演唱會',
+          selectedMemberIds: [],
+          note: ''
+        })
+
+        // LocalStorage 同步
+        onMounted(() => {
+          const savedMembers = localStorage.getItem('svt_members')
+          const savedRecords = localStorage.getItem('svt_records')
+          if (savedMembers) members.value = JSON.parse(savedMembers)
+          if (savedRecords) records.value = JSON.parse(savedRecords)
+        })
+
+        watch(members, (newVal) => {
+          localStorage.setItem('svt_members', JSON.stringify(newVal))
+        }, { deep: true })
+
+        watch(records, (newVal) => {
+          localStorage.setItem('svt_records', JSON.stringify(newVal))
+        }, { deep: true })
+
+        const totalMeetCount = computed(() => members.value.reduce((acc, m) => acc + m.count, 0))
+        const unlockedMembersCount = computed(() => members.value.filter(m => m.count > 0).length)
+
+        const sortedMembers = computed(() => {
+          const list = [...members.value]
+          if (sortBy.value === 'count') {
+            return list.sort((a, b) => b.count - a.count)
+          }
+          return list
+        })
+
+        const selectAllMembers = () => {
+          if (newRecord.value.selectedMemberIds.length === 13) {
+            newRecord.value.selectedMemberIds = []
+          } else {
+            newRecord.value.selectedMemberIds = members.value.map(m => m.id)
+          }
+        }
+
+        const saveRecord = () => {
+          if (!newRecord.value.title || newRecord.value.selectedMemberIds.length === 0) {
+            alert('請輸入活動名稱並至少選擇一位成員！')
+            return
+          }
+
+          records.value.push({ ...newRecord.value, id: Date.now() })
+
+          newRecord.value.selectedMemberIds.forEach(id => {
+            const member = members.value.find(m => m.id === id)
+            if (member) {
+              member.count += 1
+              member.lastMetDate = newRecord.value.date
+            }
+          })
+
+          newRecord.value = {
+            title: '',
+            date: new Date().toISOString().split('T')[0],
+            type: '演唱會',
+            selectedMemberIds: [],
+            note: ''
+          }
+          showAddModal.value = false
+        }
+
+        return {
+          members, records, sortBy, showAddModal, newRecord,
+          totalMeetCount, unlockedMembersCount, sortedMembers,
+          selectAllMembers, saveRecord
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>

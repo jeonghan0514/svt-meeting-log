@@ -109,71 +109,86 @@
         </section>
       </div>
 
-      <!-- 頁籤 2: 全部活動歷史頁面 (多圖精簡緊湊雙欄) -->
+      <!-- 頁籤 2: 全部活動歷史頁面 (清晰大圖雙欄) -->
       <div v-if="currentTab === 'history'">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
           <span class="text-xs text-gray-400">共 {{ records.length }} 筆見面回憶</span>
         </div>
 
-        <div v-if="records.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div v-if="records.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div 
             v-for="rec in sortedRecords" 
             :key="rec.id" 
-            class="bg-white rounded-2xl border border-pink-100/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+            class="bg-white rounded-3xl border border-pink-100/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
             
-            <div class="p-4 space-y-3">
-              <!-- 頂部標題、類型與 D-Day 標籤 -->
-              <div class="flex justify-between items-start gap-2">
-                <div>
-                  <h3 class="font-bold text-gray-800 text-base leading-snug">{{ rec.title }}</h3>
-                  <p class="text-[11px] text-gray-400 mt-0.5 font-medium">📅 {{ rec.date }}</p>
-                </div>
+            <div>
+              <!-- 照片/海報大圖區域 (h-64 高度放大) -->
+              <div v-if="getRecordPhotos(rec).length > 0" class="w-full h-64 bg-pink-50/30 p-3 flex items-center justify-center border-b border-pink-50 relative">
+                <img 
+                  :src="getRecordPhotos(rec)[0]" 
+                  @click="previewImage(getRecordPhotos(rec)[0])"
+                  alt="活動海報" 
+                  class="max-w-full max-h-full object-contain rounded-xl shadow-sm cursor-pointer hover:opacity-95 transition-opacity"
+                >
                 
-                <div class="flex flex-col items-end gap-1 flex-shrink-0">
-                  <span class="bg-pink-100 text-pink-600 text-[11px] px-2.5 py-0.5 rounded-full font-bold">
-                    {{ rec.type }}
-                  </span>
-                  <span :class="['text-[10px] font-bold px-2 py-0.5 rounded-full', getDDayBadgeStyle(rec.date)]">
-                    {{ getDDayText(rec.date) }}
-                  </span>
+                <!-- D-Day 標籤 (照片右上角) -->
+                <div :class="['absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full shadow-md backdrop-blur-md', getDDayBadgeStyle(rec.date)]">
+                  {{ getDDayText(rec.date) }}
                 </div>
               </div>
 
-              <!-- 多照片畫廊 (橫向滑動/縮圖) -->
-              <div v-if="getRecordPhotos(rec).length > 0" class="pt-1">
-                <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              <!-- 卡片內文資訊 -->
+              <div class="p-5 space-y-3">
+                <div class="flex justify-between items-start gap-2">
+                  <div>
+                    <h3 class="font-bold text-gray-800 text-lg leading-snug">{{ rec.title }}</h3>
+                    <p class="text-xs text-gray-400 font-medium mt-0.5">📅 {{ rec.date }}</p>
+                  </div>
+                  
+                  <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span class="bg-pink-100 text-pink-600 text-xs px-2.5 py-0.5 rounded-full font-bold">
+                      {{ rec.type }}
+                    </span>
+                    <span v-if="getRecordPhotos(rec).length === 0" :class="['text-[11px] font-bold px-2 py-0.5 rounded-full', getDDayBadgeStyle(rec.date)]">
+                      {{ getDDayText(rec.date) }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- 如果有多張照片，顯示額外縮圖 -->
+                <div v-if="getRecordPhotos(rec).length > 1" class="flex gap-2 overflow-x-auto pt-1 pb-1">
                   <div 
                     v-for="(img, idx) in getRecordPhotos(rec)" 
                     :key="idx" 
                     @click="previewImage(img)"
-                    class="w-24 h-24 flex-shrink-0 bg-pink-50/40 rounded-xl overflow-hidden border border-pink-100 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity">
-                    <img :src="img" class="max-w-full max-h-full object-contain p-1">
+                    class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-pink-100 overflow-hidden p-0.5 cursor-pointer hover:opacity-90">
+                    <img :src="img" class="w-full h-full object-contain">
                   </div>
                 </div>
-              </div>
 
-              <!-- 見到成員標籤 -->
-              <div>
-                <p class="text-[11px] font-bold text-gray-400 mb-1">見到的成員 ({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)：</p>
-                <div class="flex flex-wrap gap-1">
-                  <span 
-                    v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
-                    :key="mName" 
-                    class="bg-blue-50/80 text-blue-600 border border-blue-100 text-[11px] px-2 py-0.5 rounded-md font-medium">
-                    {{ mName }}
-                  </span>
+                <!-- 見到成員 -->
+                <div>
+                  <p class="text-[11px] font-bold text-gray-400 mb-1">見到的成員 ({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)：</p>
+                  <div class="flex flex-wrap gap-1">
+                    <span 
+                      v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
+                      :key="mName" 
+                      class="bg-blue-50/80 text-blue-600 border border-blue-100 text-xs px-2 py-0.5 rounded-md font-medium">
+                      {{ mName }}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <!-- 座位與筆記 -->
-              <p v-if="rec.note" class="text-xs text-gray-600 bg-gray-50/80 p-2.5 rounded-xl border border-gray-100 whitespace-pre-line leading-relaxed">
-                {{ rec.note }}
-              </p>
+                <!-- 筆記心得 -->
+                <p v-if="rec.note" class="text-xs text-gray-600 bg-gray-50/80 p-3 rounded-xl border border-gray-100 whitespace-pre-line leading-relaxed">
+                  {{ rec.note }}
+                </p>
+              </div>
             </div>
 
-            <!-- 底部按鈕區 -->
-            <div class="px-4 py-2 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3 text-xs font-medium">
+            <!-- 底部操作按鈕 -->
+            <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3 text-xs font-medium">
               <button @click="openEditModal(rec)" class="text-blue-500 hover:text-blue-700 font-bold hover:underline">
                 ✏️ 編輯
               </button>
@@ -340,7 +355,7 @@
       </div>
     </div>
 
-    <!-- 圖片點擊放大放大全螢幕 Lightbox -->
+    <!-- 圖片全螢幕放大 Lightbox -->
     <div v-if="activePreviewImage" @click="activePreviewImage = null" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 cursor-pointer">
       <img :src="activePreviewImage" class="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl">
     </div>
@@ -443,7 +458,6 @@
           return 'bg-gray-100 text-gray-500'
         }
 
-        // 相緻多圖相容性處理 (單圖/多圖均相容)
         const getRecordPhotos = (rec) => {
           if (rec.photos && Array.isArray(rec.photos) && rec.photos.length > 0) return rec.photos
           if (rec.photo) return [rec.photo]

@@ -109,7 +109,7 @@
         </section>
       </div>
 
-      <!-- 頁籤 2: 全部活動歷史頁面 (全新雙欄網格卡片排版) -->
+      <!-- 頁籤 2: 全部活動歷史頁面 (含 D-Day 倒數標籤) -->
       <div v-if="currentTab === 'history'">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
@@ -121,21 +121,33 @@
           <div 
             v-for="rec in sortedRecords" 
             :key="rec.id" 
-            class="bg-white rounded-3xl border border-pink-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+            class="bg-white rounded-3xl border border-pink-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between relative">
             
             <div>
               <!-- 海報圖片區域：完整呈現不裁切 -->
-              <div v-if="rec.photo" class="w-full h-56 bg-gradient-to-b from-pink-50/50 to-blue-50/30 p-3 flex items-center justify-center border-b border-pink-50">
+              <div v-if="rec.photo" class="w-full h-56 bg-gradient-to-b from-pink-50/50 to-blue-50/30 p-3 flex items-center justify-center border-b border-pink-50 relative">
                 <img :src="rec.photo" alt="活動海報" class="max-w-full max-h-full object-contain rounded-xl shadow-sm">
+                
+                <!-- D-Day 標籤 (浮動在照片右上角) -->
+                <div :class="['absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full shadow-md backdrop-blur-md', getDDayBadgeStyle(rec.date)]">
+                  {{ getDDayText(rec.date) }}
+                </div>
               </div>
 
               <!-- 卡片主體文字內容 -->
               <div class="p-5 space-y-3">
                 <div class="flex justify-between items-start gap-2">
                   <h3 class="font-bold text-gray-800 text-lg leading-snug">{{ rec.title }}</h3>
-                  <span class="bg-pink-100 text-pink-600 text-xs px-2.5 py-1 rounded-full font-bold whitespace-nowrap flex-shrink-0">
-                    {{ rec.type }}
-                  </span>
+                  
+                  <!-- 無照片時的 D-Day 與類型的 Badge 組合 -->
+                  <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span class="bg-pink-100 text-pink-600 text-xs px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap">
+                      {{ rec.type }}
+                    </span>
+                    <span v-if="!rec.photo" :class="['text-[11px] font-bold px-2 py-0.5 rounded-full shadow-xs', getDDayBadgeStyle(rec.date)]">
+                      {{ getDDayText(rec.date) }}
+                    </span>
+                  </div>
                 </div>
                 
                 <p class="text-xs text-gray-400 flex items-center gap-1 font-medium">
@@ -144,7 +156,7 @@
 
                 <!-- 成員標籤 -->
                 <div class="pt-1">
-                  <p class="text-[11px] font-bold text-gray-400 mb-1.5">見到的成員 ({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)：</p>
+                  <p class="text-[11px] font-bold text-gray-400 mb-1.5">預計/見到的成員 ({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)：</p>
                   <div class="flex flex-wrap gap-1">
                     <span 
                       v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
@@ -390,10 +402,14 @@
           photo: ''
         })
 
+        // 重新計算成員次數 (未來的活動不計入已見面次數)
         const recalculateMemberStats = () => {
           members.value = defaultMembers.map(m => ({ ...m, count: 0, lastMetDate: '' }))
+          const today = new Date().toISOString().split('T')[0]
+
           records.value.forEach(rec => {
-            if (rec.selectedMemberIds) {
+            // 只有當日期是今天或過去的日期，才算作已經見面
+            if (rec.selectedMemberIds && rec.date <= today) {
               rec.selectedMemberIds.forEach(id => {
                 const member = members.value.find(m => m.id === id)
                 if (member) {
@@ -405,6 +421,33 @@
               })
             }
           })
+        }
+
+        // 計算 D-Day 天數
+        const getDDayDays = (targetDateStr) => {
+          const target = new Date(targetDateStr)
+          const today = new Date()
+          
+          // 將時間歸零比較純日期
+          target.setHours(0, 0, 0, 0)
+          today.setHours(0, 0, 0, 0)
+
+          const diffTime = target - today
+          return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+        }
+
+        const getDDayText = (targetDateStr) => {
+          const diffDays = getDDayDays(targetDateStr)
+          if (diffDays > 0) return `D-${diffDays}`
+          if (diffDays === 0) return `D-Day ✨`
+          return `D+${Math.abs(diffDays)}`
+        }
+
+        const getDDayBadgeStyle = (targetDateStr) => {
+          const diffDays = getDDayDays(targetDateStr)
+          if (diffDays > 0) return 'bg-gradient-to-r from-pink-400 to-purple-400 text-white animate-pulse'
+          if (diffDays === 0) return 'bg-yellow-400 text-yellow-900 font-black'
+          return 'bg-gray-100 text-gray-500'
         }
 
         onMounted(() => {
@@ -558,7 +601,7 @@
           currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
           selectedMemberForDetail, memberHistoryRecords,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          openMemberDetail, openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
+          getDDayText, getDDayBadgeStyle, openMemberDetail, openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
         }
       }
     }).mount('#app')

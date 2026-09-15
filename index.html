@@ -18,14 +18,24 @@
           <h1 class="text-xl font-bold bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
             SVT Meeting Log
           </h1>
-          <span v-if="loading" class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full animate-pulse">☁️ 雲端同步中...</span>
-          <span v-else class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">☁️ Google 雲端連線</span>
+          <span class="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">💾 本地離線儲存</span>
         </div>
-        <button 
-          @click="openAddModal"
-          class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
-          <span>✨ 新增見面紀錄</span>
-        </button>
+        
+        <div class="flex items-center gap-2">
+          <!-- 備份/匯入按鈕 -->
+          <button @click="exportData" title="匯出備份檔" class="bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 p-2 rounded-full text-xs shadow-sm cursor-pointer">
+            📤 備份
+          </button>
+          <label title="匯入備份檔" class="bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 p-2 rounded-full text-xs shadow-sm cursor-pointer">
+            📥 還原
+            <input type="file" @change="importData" accept=".json" class="hidden" />
+          </label>
+          <button 
+            @click="openAddModal"
+            class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
+            <span>✨ 新增紀錄</span>
+          </button>
+        </div>
       </div>
 
       <!-- 頁籤切換 -->
@@ -163,7 +173,7 @@
 
         <div v-else class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-gray-200">
           <p class="text-4xl mb-2">💎</p>
-          <p class="text-gray-500 font-medium text-sm">還沒有新增任何紀錄，或資料載入中...</p>
+          <p class="text-gray-500 font-medium text-sm">還沒有新增任何紀錄喔！</p>
         </div>
       </div>
 
@@ -202,12 +212,12 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-gray-600 mb-1">活動現場照片 (儲存至 Google Drive)</label>
+            <label class="block text-xs font-bold text-gray-600 mb-1">活動現場照片</label>
             <input type="file" @change="handlePhotoUpload" accept="image/*" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100" />
             
-            <div v-if="newRecord.photoBase64" class="mt-2 w-full h-32 rounded-xl overflow-hidden bg-gray-50 border border-gray-200 relative">
-              <img :src="newRecord.photoBase64" class="w-full h-full object-cover">
-              <button @click="newRecord.photoBase64 = ''" class="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">移除照片</button>
+            <div v-if="newRecord.photo" class="mt-2 w-full h-32 rounded-xl overflow-hidden bg-gray-50 border border-gray-200 relative">
+              <img :src="newRecord.photo" class="w-full h-full object-cover">
+              <button @click="newRecord.photo = ''" class="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">移除照片</button>
             </div>
           </div>
 
@@ -239,9 +249,8 @@
 
         <div class="flex justify-end gap-2 mt-6">
           <button @click="showAddModal = false" class="px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 text-sm">取消</button>
-          <button @click="saveRecord" :disabled="submitting" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90 flex items-center gap-1">
-            <span v-if="submitting">更新儲存中...</span>
-            <span v-else>{{ isEditMode ? '儲存修改' : '儲存紀錄' }}</span>
+          <button @click="saveRecord" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90">
+            {{ isEditMode ? '儲存修改' : '儲存紀錄' }}
           </button>
         </div>
       </div>
@@ -250,9 +259,7 @@
   </div>
 
   <script>
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyzrbWG6bWFmgSOBz6mQx0WZILrN59mn1cl5LtwIEr0ByCH-TTK4xckAkhgYZBP7pyPVw/exec";
-
-    const { createApp, ref, computed, onMounted } = Vue
+    const { createApp, ref, computed, watch, onMounted } = Vue
 
     createApp({
       setup() {
@@ -278,8 +285,6 @@
         const sortBy = ref('age')
         const showAddModal = ref(false)
         const isEditMode = ref(false)
-        const loading = ref(false)
-        const submitting = ref(false)
 
         const newRecord = ref({
           id: null,
@@ -288,9 +293,10 @@
           type: '演唱會',
           selectedMemberIds: [],
           note: '',
-          photoBase64: ''
+          photo: ''
         })
 
+        // 重新計算成員次數
         const recalculateMemberStats = () => {
           members.value = defaultMembers.map(m => ({ ...m, count: 0, lastMetDate: '' }))
           records.value.forEach(rec => {
@@ -308,23 +314,20 @@
           })
         }
 
-        const fetchRecordsFromGAS = async () => {
-          loading.value = true
-          try {
-            const res = await fetch(GAS_API_URL)
-            const data = await res.json()
-            records.value = data
-            recalculateMemberStats()
-          } catch (err) {
-            console.error("載入失敗:", err)
-          } finally {
-            loading.value = false
-          }
-        }
-
+        // 本地儲存自動讀取與同步
         onMounted(() => {
-          fetchRecordsFromGAS()
+          const savedRecords = localStorage.getItem('svt_local_records')
+          if (savedRecords) {
+            try {
+              records.value = JSON.parse(savedRecords)
+              recalculateMemberStats()
+            } catch (e) {}
+          }
         })
+
+        watch(records, (newVal) => {
+          localStorage.setItem('svt_local_records', JSON.stringify(newVal))
+        }, { deep: true })
 
         const totalMeetCount = computed(() => members.value.reduce((acc, m) => acc + m.count, 0))
         const unlockedMembersCount = computed(() => members.value.filter(m => m.count > 0).length)
@@ -350,7 +353,7 @@
             type: '演唱會',
             selectedMemberIds: [],
             note: '',
-            photoBase64: ''
+            photo: ''
           }
           showAddModal.value = true
         }
@@ -364,7 +367,7 @@
             type: rec.type,
             selectedMemberIds: [...rec.selectedMemberIds],
             note: rec.note || '',
-            photoBase64: rec.photo || ''
+            photo: rec.photo || ''
           }
           showAddModal.value = true
         }
@@ -399,7 +402,7 @@
               canvas.width = width
               canvas.height = height
               ctx.drawImage(img, 0, 0, width, height)
-              newRecord.value.photoBase64 = canvas.toDataURL('image/jpeg', 0.6)
+              newRecord.value.photo = canvas.toDataURL('image/jpeg', 0.6)
             }
             img.src = event.target.result
           }
@@ -414,70 +417,70 @@
           }).filter(Boolean)
         }
 
-        const saveRecord = async () => {
+        const saveRecord = () => {
           if (!newRecord.value.title || newRecord.value.selectedMemberIds.length === 0) {
             alert('請輸入活動名稱並至少選擇一位成員！')
             return
           }
 
-          submitting.value = true
-          const payload = {
-            action: isEditMode.value ? 'update' : 'add',
-            id: isEditMode.value ? newRecord.value.id : Date.now(),
-            title: newRecord.value.title,
-            date: newRecord.value.date,
-            type: newRecord.value.type,
-            selectedMemberIds: newRecord.value.selectedMemberIds,
-            note: newRecord.value.note,
-            photoBase64: newRecord.value.photoBase64
-          }
-
-          try {
-            await fetch(GAS_API_URL, {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
+          if (isEditMode.value) {
+            const index = records.value.findIndex(r => r.id === newRecord.value.id)
+            if (index !== -1) {
+              records.value[index] = { ...newRecord.value }
+            }
+          } else {
+            records.value.push({
+              ...newRecord.value,
+              id: Date.now()
             })
-            
-            showAddModal.value = false
-
-            setTimeout(() => {
-              fetchRecordsFromGAS()
-            }, 1500)
-
-          } catch (err) {
-            alert('儲存失敗，請重試！')
-          } finally {
-            submitting.value = false
           }
+
+          recalculateMemberStats()
+          showAddModal.value = false
         }
 
-        const deleteRecord = async (recordId) => {
+        const deleteRecord = (recordId) => {
           if (!confirm('確定要刪除這筆見面紀錄嗎？')) return
+          records.value = records.value.filter(r => r.id !== recordId)
+          recalculateMemberStats()
+        }
 
-          loading.value = true
-          try {
-            await fetch(GAS_API_URL, {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'delete', id: recordId })
-            })
-            
-            setTimeout(() => {
-              fetchRecordsFromGAS()
-            }, 1000)
-          } catch (err) {
-            alert('刪除失敗！')
-            loading.value = false
+        // 匯出 JSON 備份檔
+        const exportData = () => {
+          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records.value))
+          const downloadAnchor = document.createElement('a')
+          downloadAnchor.setAttribute("href", dataStr)
+          downloadAnchor.setAttribute("download", `svt_meeting_backup_${new Date().toISOString().split('T')[0]}.json`)
+          document.body.appendChild(downloadAnchor)
+          downloadAnchor.click()
+          downloadAnchor.remove()
+        }
+
+        // 匯入 JSON 備份檔
+        const importData = (e) => {
+          const file = e.target.files[0]
+          if (!file) return
+          const reader = new FileReader()
+          reader.onload = (event) => {
+            try {
+              const importedRecords = JSON.parse(event.target.result)
+              if (Array.isArray(importedRecords)) {
+                records.value = importedRecords
+                recalculateMemberStats()
+                alert('還原成功！見面紀錄已全部載入。')
+              }
+            } catch (err) {
+              alert('備份檔格式不正確！')
+            }
           }
+          reader.readAsText(file)
         }
 
         return {
-          currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
+          currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
+          openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds,
+          saveRecord, deleteRecord, exportData, importData
         }
       }
     }).mount('#app')

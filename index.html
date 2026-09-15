@@ -6,6 +6,10 @@
   <title>SVT Meeting Log | 見面次數統計小屋</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+  <!-- 載入 Firebase SDK (Compat 版本) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-gradient-to-br from-pink-50 via-white to-blue-50 text-gray-800 min-h-screen pb-12 font-sans">
 
@@ -18,24 +22,15 @@
           <h1 class="text-xl font-bold bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
             SVT Meeting Log
           </h1>
-          <span class="text-[10px] bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full font-medium">💾 本地離線儲存</span>
+          <span v-if="loading" class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full animate-pulse">☁️ 雲端同步中...</span>
+          <span v-else class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">☁️ Firebase 雲端連線</span>
         </div>
         
-        <div class="flex items-center gap-2">
-          <!-- 備份/匯入按鈕 -->
-          <button @click="exportData" title="匯出備份檔" class="bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 p-2 rounded-full text-xs shadow-sm cursor-pointer">
-            📤 備份
-          </button>
-          <label title="匯入備份檔" class="bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 p-2 rounded-full text-xs shadow-sm cursor-pointer">
-            📥 還原
-            <input type="file" @change="importData" accept=".json" class="hidden" />
-          </label>
-          <button 
-            @click="openAddModal"
-            class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
-            <span>✨ 新增紀錄</span>
-          </button>
-        </div>
+        <button 
+          @click="openAddModal"
+          class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
+          <span>✨ 新增紀錄</span>
+        </button>
       </div>
 
       <!-- 頁籤切換 -->
@@ -173,7 +168,7 @@
 
         <div v-else class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-gray-200">
           <p class="text-4xl mb-2">💎</p>
-          <p class="text-gray-500 font-medium text-sm">還沒有新增任何紀錄喔！</p>
+          <p class="text-gray-500 font-medium text-sm">還沒有新增任何紀錄，或資料載入中...</p>
         </div>
       </div>
 
@@ -249,8 +244,9 @@
 
         <div class="flex justify-end gap-2 mt-6">
           <button @click="showAddModal = false" class="px-4 py-2 rounded-xl text-gray-500 hover:bg-gray-100 text-sm">取消</button>
-          <button @click="saveRecord" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90">
-            {{ isEditMode ? '儲存修改' : '儲存紀錄' }}
+          <button @click="saveRecord" :disabled="submitting" class="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-400 to-blue-400 text-white font-medium text-sm shadow-md hover:opacity-90 flex items-center gap-1">
+            <span v-if="submitting">儲存中...</span>
+            <span v-else>{{ isEditMode ? '儲存修改' : '儲存紀錄' }}</span>
           </button>
         </div>
       </div>
@@ -259,7 +255,21 @@
   </div>
 
   <script>
-    const { createApp, ref, computed, watch, onMounted } = Vue
+    // 代入你的專屬 Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBjblnVM2Co7-dGsQNEZgzCg7zcKxNc7GY",
+      authDomain: "svt-meeting-log.firebaseapp.com",
+      projectId: "svt-meeting-log",
+      storageBucket: "svt-meeting-log.firebasestorage.app",
+      messagingSenderId: "462910127620",
+      appId: "1:462910127620:web:cc7aa5b27c0e52b74fbf51"
+    };
+
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const { createApp, ref, computed, onMounted } = Vue
 
     createApp({
       setup() {
@@ -285,6 +295,8 @@
         const sortBy = ref('age')
         const showAddModal = ref(false)
         const isEditMode = ref(false)
+        const loading = ref(false)
+        const submitting = ref(false)
 
         const newRecord = ref({
           id: null,
@@ -296,7 +308,6 @@
           photo: ''
         })
 
-        // 重新計算成員次數
         const recalculateMemberStats = () => {
           members.value = defaultMembers.map(m => ({ ...m, count: 0, lastMetDate: '' }))
           records.value.forEach(rec => {
@@ -314,20 +325,22 @@
           })
         }
 
-        // 本地儲存自動讀取與同步
         onMounted(() => {
-          const savedRecords = localStorage.getItem('svt_local_records')
-          if (savedRecords) {
-            try {
-              records.value = JSON.parse(savedRecords)
-              recalculateMemberStats()
-            } catch (e) {}
-          }
+          loading.value = true
+          // 即時監聽雲端資料庫變更
+          db.collection('meeting_records').onSnapshot(snapshot => {
+            const cloudRecords = []
+            snapshot.forEach(doc => {
+              cloudRecords.push(doc.data())
+            })
+            records.value = cloudRecords
+            recalculateMemberStats()
+            loading.value = false
+          }, err => {
+            console.error("Firebase 連線失敗:", err)
+            loading.value = false
+          })
         })
-
-        watch(records, (newVal) => {
-          localStorage.setItem('svt_local_records', JSON.stringify(newVal))
-        }, { deep: true })
 
         const totalMeetCount = computed(() => members.value.reduce((acc, m) => acc + m.count, 0))
         const unlockedMembersCount = computed(() => members.value.filter(m => m.count > 0).length)
@@ -417,70 +430,43 @@
           }).filter(Boolean)
         }
 
-        const saveRecord = () => {
+        const saveRecord = async () => {
           if (!newRecord.value.title || newRecord.value.selectedMemberIds.length === 0) {
             alert('請輸入活動名稱並至少選擇一位成員！')
             return
           }
 
-          if (isEditMode.value) {
-            const index = records.value.findIndex(r => r.id === newRecord.value.id)
-            if (index !== -1) {
-              records.value[index] = { ...newRecord.value }
-            }
-          } else {
-            records.value.push({
-              ...newRecord.value,
-              id: Date.now()
-            })
-          }
+          submitting.value = true
+          const recordId = isEditMode.value ? newRecord.value.id : Date.now()
+          const recordData = { ...newRecord.value, id: recordId }
 
-          recalculateMemberStats()
-          showAddModal.value = false
+          try {
+            await db.collection('meeting_records').doc(String(recordId)).set(recordData)
+            showAddModal.value = false
+          } catch (err) {
+            alert('儲存失敗：' + err.message)
+          } finally {
+            submitting.value = false
+          }
         }
 
-        const deleteRecord = (recordId) => {
+        const deleteRecord = async (recordId) => {
           if (!confirm('確定要刪除這筆見面紀錄嗎？')) return
-          records.value = records.value.filter(r => r.id !== recordId)
-          recalculateMemberStats()
-        }
 
-        // 匯出 JSON 備份檔
-        const exportData = () => {
-          const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(records.value))
-          const downloadAnchor = document.createElement('a')
-          downloadAnchor.setAttribute("href", dataStr)
-          downloadAnchor.setAttribute("download", `svt_meeting_backup_${new Date().toISOString().split('T')[0]}.json`)
-          document.body.appendChild(downloadAnchor)
-          downloadAnchor.click()
-          downloadAnchor.remove()
-        }
-
-        // 匯入 JSON 備份檔
-        const importData = (e) => {
-          const file = e.target.files[0]
-          if (!file) return
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            try {
-              const importedRecords = JSON.parse(event.target.result)
-              if (Array.isArray(importedRecords)) {
-                records.value = importedRecords
-                recalculateMemberStats()
-                alert('還原成功！見面紀錄已全部載入。')
-              }
-            } catch (err) {
-              alert('備份檔格式不正確！')
-            }
+          loading.value = true
+          try {
+            await db.collection('meeting_records').doc(String(recordId)).delete()
+          } catch (err) {
+            alert('刪除失敗！')
+          } finally {
+            loading.value = false
           }
-          reader.readAsText(file)
         }
 
         return {
-          currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord,
+          currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds,
-          saveRecord, deleteRecord, exportData, importData
+          openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
         }
       }
     }).mount('#app')

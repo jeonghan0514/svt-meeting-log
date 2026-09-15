@@ -51,7 +51,7 @@
 
     <main class="max-w-4xl mx-auto px-4 pt-6">
       
-      <!-- 頁籤 1: 成員 Dashboard (保持完全不變) -->
+      <!-- 頁籤 1: 成員 Dashboard -->
       <div v-if="currentTab === 'dashboard'">
         <section class="grid grid-cols-3 gap-3 mb-6">
           <div class="bg-white/90 p-4 rounded-2xl shadow-sm border border-pink-100 text-center">
@@ -109,77 +109,75 @@
         </section>
       </div>
 
-      <!-- 頁籤 2: 全部活動歷史頁面 (含 D-Day 倒數標籤) -->
+      <!-- 頁籤 2: 全部活動歷史頁面 (多圖精簡緊湊雙欄) -->
       <div v-if="currentTab === 'history'">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
           <span class="text-xs text-gray-400">共 {{ records.length }} 筆見面回憶</span>
         </div>
 
-        <!-- 卡片 Grid 網格佈局 -->
-        <div v-if="records.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div v-if="records.length > 0" class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div 
             v-for="rec in sortedRecords" 
             :key="rec.id" 
-            class="bg-white rounded-3xl border border-pink-100 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between relative">
+            class="bg-white rounded-2xl border border-pink-100/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
             
-            <div>
-              <!-- 海報圖片區域：完整呈現不裁切 -->
-              <div v-if="rec.photo" class="w-full h-56 bg-gradient-to-b from-pink-50/50 to-blue-50/30 p-3 flex items-center justify-center border-b border-pink-50 relative">
-                <img :src="rec.photo" alt="活動海報" class="max-w-full max-h-full object-contain rounded-xl shadow-sm">
+            <div class="p-4 space-y-3">
+              <!-- 頂部標題、類型與 D-Day 標籤 -->
+              <div class="flex justify-between items-start gap-2">
+                <div>
+                  <h3 class="font-bold text-gray-800 text-base leading-snug">{{ rec.title }}</h3>
+                  <p class="text-[11px] text-gray-400 mt-0.5 font-medium">📅 {{ rec.date }}</p>
+                </div>
                 
-                <!-- D-Day 標籤 (浮動在照片右上角) -->
-                <div :class="['absolute top-3 right-3 text-xs font-bold px-3 py-1 rounded-full shadow-md backdrop-blur-md', getDDayBadgeStyle(rec.date)]">
-                  {{ getDDayText(rec.date) }}
+                <div class="flex flex-col items-end gap-1 flex-shrink-0">
+                  <span class="bg-pink-100 text-pink-600 text-[11px] px-2.5 py-0.5 rounded-full font-bold">
+                    {{ rec.type }}
+                  </span>
+                  <span :class="['text-[10px] font-bold px-2 py-0.5 rounded-full', getDDayBadgeStyle(rec.date)]">
+                    {{ getDDayText(rec.date) }}
+                  </span>
                 </div>
               </div>
 
-              <!-- 卡片主體文字內容 -->
-              <div class="p-5 space-y-3">
-                <div class="flex justify-between items-start gap-2">
-                  <h3 class="font-bold text-gray-800 text-lg leading-snug">{{ rec.title }}</h3>
-                  
-                  <!-- 無照片時的 D-Day 與類型的 Badge 組合 -->
-                  <div class="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span class="bg-pink-100 text-pink-600 text-xs px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap">
-                      {{ rec.type }}
-                    </span>
-                    <span v-if="!rec.photo" :class="['text-[11px] font-bold px-2 py-0.5 rounded-full shadow-xs', getDDayBadgeStyle(rec.date)]">
-                      {{ getDDayText(rec.date) }}
-                    </span>
+              <!-- 多照片畫廊 (橫向滑動/縮圖) -->
+              <div v-if="getRecordPhotos(rec).length > 0" class="pt-1">
+                <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                  <div 
+                    v-for="(img, idx) in getRecordPhotos(rec)" 
+                    :key="idx" 
+                    @click="previewImage(img)"
+                    class="w-24 h-24 flex-shrink-0 bg-pink-50/40 rounded-xl overflow-hidden border border-pink-100 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity">
+                    <img :src="img" class="max-w-full max-h-full object-contain p-1">
                   </div>
                 </div>
-                
-                <p class="text-xs text-gray-400 flex items-center gap-1 font-medium">
-                  <span>📅 {{ rec.date }}</span>
-                </p>
-
-                <!-- 成員標籤 -->
-                <div class="pt-1">
-                  <p class="text-[11px] font-bold text-gray-400 mb-1.5">預計/見到的成員 ({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)：</p>
-                  <div class="flex flex-wrap gap-1">
-                    <span 
-                      v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
-                      :key="mName" 
-                      class="bg-blue-50/80 text-blue-600 border border-blue-100 text-xs px-2 py-0.5 rounded-lg font-medium">
-                      {{ mName }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- 筆記心得 -->
-                <p v-if="rec.note" class="text-xs text-gray-600 bg-gray-50/80 p-3 rounded-xl border border-gray-100 whitespace-pre-line leading-relaxed">
-                  {{ rec.note }}
-                </p>
               </div>
+
+              <!-- 見到成員標籤 -->
+              <div>
+                <p class="text-[11px] font-bold text-gray-400 mb-1">見到的成員 ({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)：</p>
+                <div class="flex flex-wrap gap-1">
+                  <span 
+                    v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
+                    :key="mName" 
+                    class="bg-blue-50/80 text-blue-600 border border-blue-100 text-[11px] px-2 py-0.5 rounded-md font-medium">
+                    {{ mName }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- 座位與筆記 -->
+              <p v-if="rec.note" class="text-xs text-gray-600 bg-gray-50/80 p-2.5 rounded-xl border border-gray-100 whitespace-pre-line leading-relaxed">
+                {{ rec.note }}
+              </p>
             </div>
 
-            <!-- 底部操作按鈕 -->
-            <div class="px-5 py-3 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3 text-xs font-medium">
-              <button @click="openEditModal(rec)" class="text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-0.5">
+            <!-- 底部按鈕區 -->
+            <div class="px-4 py-2 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3 text-xs font-medium">
+              <button @click="openEditModal(rec)" class="text-blue-500 hover:text-blue-700 font-bold hover:underline">
                 ✏️ 編輯
               </button>
-              <button @click="deleteRecord(rec.id)" class="text-red-400 hover:text-red-600 hover:underline flex items-center gap-0.5">
+              <button @click="deleteRecord(rec.id)" class="text-red-400 hover:text-red-600 font-bold hover:underline">
                 🗑️ 刪除
               </button>
             </div>
@@ -227,13 +225,16 @@
             </div>
           </div>
 
+          <!-- 多照片上傳區 -->
           <div>
-            <label class="block text-xs font-bold text-gray-600 mb-1">活動現場海報/照片</label>
-            <input type="file" @change="handlePhotoUpload" accept="image/*" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100" />
+            <label class="block text-xs font-bold text-gray-600 mb-1">活動照片/海報/票根 (可選多張)</label>
+            <input type="file" @change="handleMultiplePhotosUpload" accept="image/*" multiple class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100" />
             
-            <div v-if="newRecord.photo" class="mt-2 w-full h-40 rounded-xl overflow-hidden bg-pink-50/30 p-2 border border-gray-200 relative flex items-center justify-center">
-              <img :src="newRecord.photo" class="max-w-full max-h-full object-contain rounded-lg">
-              <button @click="newRecord.photo = ''" class="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">移除照片</button>
+            <div v-if="newRecord.photos.length > 0" class="mt-2 flex gap-2 overflow-x-auto p-2 bg-gray-50 rounded-xl border border-gray-200">
+              <div v-for="(p, i) in newRecord.photos" :key="i" class="w-20 h-20 flex-shrink-0 relative bg-white rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center">
+                <img :src="p" class="max-w-full max-h-full object-contain">
+                <button @click="removePhoto(i)" class="absolute top-0.5 right-0.5 bg-black/70 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">✕</button>
+              </div>
             </div>
           </div>
 
@@ -273,11 +274,9 @@
       </div>
     </div>
 
-    <!-- 成員獨家歷史 Timeline 彈窗 (Member Detail Modal) -->
+    <!-- 成員歷程彈窗 -->
     <div v-if="selectedMemberForDetail" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-pink-100 max-h-[85vh] overflow-y-auto">
-        
-        <!-- 成員 Header 資訊 -->
         <div class="flex items-center justify-between pb-4 border-b border-pink-100">
           <div class="flex items-center gap-3">
             <div class="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-200 to-blue-200 flex items-center justify-center text-lg font-bold text-white shadow-inner">
@@ -298,7 +297,6 @@
           </div>
         </div>
 
-        <!-- 歷史時間軸 -->
         <div class="mt-4">
           <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">與 {{ selectedMemberForDetail.name }} 的見面歷程</h4>
 
@@ -308,7 +306,6 @@
               :key="rec.id" 
               class="relative bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
               
-              <!-- 時間軸點點 -->
               <span class="absolute -left-[23px] top-4 w-3 h-3 rounded-full bg-pink-400 border-2 border-white shadow-sm"></span>
 
               <div class="flex justify-between items-start">
@@ -320,9 +317,8 @@
 
               <p class="text-[11px] text-gray-400 mt-0.5">📅 {{ rec.date }}</p>
 
-              <!-- 海報照 -->
-              <div v-if="rec.photo" class="mt-2 w-full h-32 bg-white rounded-xl p-1 border border-gray-100 flex items-center justify-center">
-                <img :src="rec.photo" class="max-w-full max-h-full object-contain rounded-lg">
+              <div v-if="getRecordPhotos(rec).length > 0" class="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                <img v-for="(p, idx) in getRecordPhotos(rec)" :key="idx" :src="p" @click="previewImage(p)" class="w-16 h-16 object-contain bg-white rounded-lg border border-gray-200 cursor-pointer">
               </div>
 
               <p v-if="rec.note" class="text-xs text-gray-600 mt-2 bg-white p-2 rounded-xl border border-gray-100">
@@ -336,14 +332,17 @@
           </div>
         </div>
 
-        <!-- 關閉按鈕 -->
         <div class="mt-6 flex justify-end">
           <button @click="selectedMemberForDetail = null" class="px-5 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200">
             關閉窗口
           </button>
         </div>
-
       </div>
+    </div>
+
+    <!-- 圖片點擊放大放大全螢幕 Lightbox -->
+    <div v-if="activePreviewImage" @click="activePreviewImage = null" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 cursor-pointer">
+      <img :src="activePreviewImage" class="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl">
     </div>
 
   </div>
@@ -391,6 +390,7 @@
         const loading = ref(false)
         const submitting = ref(false)
         const selectedMemberForDetail = ref(null)
+        const activePreviewImage = ref(null)
 
         const newRecord = ref({
           id: null,
@@ -399,16 +399,14 @@
           type: '演唱會',
           selectedMemberIds: [],
           note: '',
-          photo: ''
+          photos: []
         })
 
-        // 重新計算成員次數 (未來的活動不計入已見面次數)
         const recalculateMemberStats = () => {
           members.value = defaultMembers.map(m => ({ ...m, count: 0, lastMetDate: '' }))
           const today = new Date().toISOString().split('T')[0]
 
           records.value.forEach(rec => {
-            // 只有當日期是今天或過去的日期，才算作已經見面
             if (rec.selectedMemberIds && rec.date <= today) {
               rec.selectedMemberIds.forEach(id => {
                 const member = members.value.find(m => m.id === id)
@@ -423,17 +421,12 @@
           })
         }
 
-        // 計算 D-Day 天數
         const getDDayDays = (targetDateStr) => {
           const target = new Date(targetDateStr)
           const today = new Date()
-          
-          // 將時間歸零比較純日期
           target.setHours(0, 0, 0, 0)
           today.setHours(0, 0, 0, 0)
-
-          const diffTime = target - today
-          return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          return Math.ceil((target - today) / (1000 * 60 * 60 * 24))
         }
 
         const getDDayText = (targetDateStr) => {
@@ -445,9 +438,16 @@
 
         const getDDayBadgeStyle = (targetDateStr) => {
           const diffDays = getDDayDays(targetDateStr)
-          if (diffDays > 0) return 'bg-gradient-to-r from-pink-400 to-purple-400 text-white animate-pulse'
-          if (diffDays === 0) return 'bg-yellow-400 text-yellow-900 font-black'
+          if (diffDays > 0) return 'bg-pink-500 text-white font-bold'
+          if (diffDays === 0) return 'bg-yellow-400 text-yellow-900 font-bold'
           return 'bg-gray-100 text-gray-500'
+        }
+
+        // 相緻多圖相容性處理 (單圖/多圖均相容)
+        const getRecordPhotos = (rec) => {
+          if (rec.photos && Array.isArray(rec.photos) && rec.photos.length > 0) return rec.photos
+          if (rec.photo) return [rec.photo]
+          return []
         }
 
         onMounted(() => {
@@ -491,6 +491,10 @@
           selectedMemberForDetail.value = member
         }
 
+        const previewImage = (imgUrl) => {
+          activePreviewImage.value = imgUrl
+        }
+
         const openAddModal = () => {
           isEditMode.value = false
           newRecord.value = {
@@ -500,7 +504,7 @@
             type: '演唱會',
             selectedMemberIds: [],
             note: '',
-            photo: ''
+            photos: []
           }
           showAddModal.value = true
         }
@@ -514,7 +518,7 @@
             type: rec.type,
             selectedMemberIds: [...rec.selectedMemberIds],
             note: rec.note || '',
-            photo: rec.photo || ''
+            photos: getRecordPhotos(rec)
           }
           showAddModal.value = true
         }
@@ -527,33 +531,39 @@
           }
         }
 
-        const handlePhotoUpload = (e) => {
-          const file = e.target.files[0]
-          if (!file) return
+        const handleMultiplePhotosUpload = (e) => {
+          const files = Array.from(e.target.files)
+          if (!files.length) return
 
-          const reader = new FileReader()
-          reader.onload = (event) => {
-            const img = new Image()
-            img.onload = () => {
-              const canvas = document.createElement('canvas')
-              const ctx = canvas.getContext('2d')
-              const maxWidth = 800
-              let width = img.width
-              let height = img.height
+          files.forEach(file => {
+            const reader = new FileReader()
+            reader.onload = (event) => {
+              const img = new Image()
+              img.onload = () => {
+                const canvas = document.createElement('canvas')
+                const ctx = canvas.getContext('2d')
+                const maxWidth = 800
+                let width = img.width
+                let height = img.height
 
-              if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width)
-                width = maxWidth
+                if (width > maxWidth) {
+                  height = Math.round((height * maxWidth) / width)
+                  width = maxWidth
+                }
+
+                canvas.width = width
+                canvas.height = height
+                ctx.drawImage(img, 0, 0, width, height)
+                newRecord.value.photos.push(canvas.toDataURL('image/jpeg', 0.6))
               }
-
-              canvas.width = width
-              canvas.height = height
-              ctx.drawImage(img, 0, 0, width, height)
-              newRecord.value.photo = canvas.toDataURL('image/jpeg', 0.6)
+              img.src = event.target.result
             }
-            img.src = event.target.result
-          }
-          reader.readAsDataURL(file)
+            reader.readAsDataURL(file)
+          })
+        }
+
+        const removePhoto = (index) => {
+          newRecord.value.photos.splice(index, 1)
         }
 
         const getMemberNamesByIds = (ids) => {
@@ -599,9 +609,11 @@
 
         return {
           currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
-          selectedMemberForDetail, memberHistoryRecords,
+          selectedMemberForDetail, memberHistoryRecords, activePreviewImage,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          getDDayText, getDDayBadgeStyle, openMemberDetail, openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
+          getDDayText, getDDayBadgeStyle, getRecordPhotos, previewImage,
+          openMemberDetail, openAddModal, openEditModal, selectAllMembers,
+          handleMultiplePhotosUpload, removePhoto, getMemberNamesByIds, saveRecord, deleteRecord
         }
       }
     }).mount('#app')

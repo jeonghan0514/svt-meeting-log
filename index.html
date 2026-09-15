@@ -109,7 +109,7 @@
         </section>
       </div>
 
-      <!-- 頁籤 2: 全部活動歷史頁面 (清晰大圖雙欄) -->
+      <!-- 頁籤 2: 全部活動歷史頁面 -->
       <div v-if="currentTab === 'history'">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
@@ -123,11 +123,11 @@
             class="bg-white rounded-3xl border border-pink-100/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
             
             <div>
-              <!-- 照片/海報大圖區域 (h-64 高度放大) -->
+              <!-- 照片/海報大圖區域 -->
               <div v-if="getRecordPhotos(rec).length > 0" class="w-full h-64 bg-pink-50/30 p-3 flex items-center justify-center border-b border-pink-50 relative">
                 <img 
-                  :src="getRecordPhotos(rec)[0]" 
-                  @click="previewImage(getRecordPhotos(rec)[0])"
+                  :src="getActivePhoto(rec)" 
+                  @click="previewImage(getActivePhoto(rec))"
                   alt="活動海報" 
                   class="max-w-full max-h-full object-contain rounded-xl shadow-sm cursor-pointer hover:opacity-95 transition-opacity"
                 >
@@ -156,13 +156,16 @@
                   </div>
                 </div>
 
-                <!-- 如果有多張照片，顯示額外縮圖 -->
+                <!-- 多圖切換縮圖列：僅在「照片數量大於 1」時才顯示，單圖時自動隱藏 -->
                 <div v-if="getRecordPhotos(rec).length > 1" class="flex gap-2 overflow-x-auto pt-1 pb-1">
                   <div 
                     v-for="(img, idx) in getRecordPhotos(rec)" 
                     :key="idx" 
-                    @click="previewImage(img)"
-                    class="w-16 h-16 flex-shrink-0 bg-white rounded-lg border border-pink-100 overflow-hidden p-0.5 cursor-pointer hover:opacity-90">
+                    @click="setActivePhoto(rec.id, img)"
+                    :class="[
+                      'w-12 h-12 flex-shrink-0 bg-white rounded-lg border overflow-hidden p-0.5 cursor-pointer transition-all',
+                      getActivePhoto(rec) === img ? 'border-pink-500 ring-2 ring-pink-200' : 'border-gray-200 opacity-60 hover:opacity-100'
+                    ]">
                     <img :src="img" class="w-full h-full object-contain">
                   </div>
                 </div>
@@ -406,6 +409,7 @@
         const submitting = ref(false)
         const selectedMemberForDetail = ref(null)
         const activePreviewImage = ref(null)
+        const activePhotoMap = ref({}) // 記錄每張卡片目前選中的展示照片
 
         const newRecord = ref({
           id: null,
@@ -462,6 +466,19 @@
           if (rec.photos && Array.isArray(rec.photos) && rec.photos.length > 0) return rec.photos
           if (rec.photo) return [rec.photo]
           return []
+        }
+
+        // 取得目前卡片展示的圖片
+        const getActivePhoto = (rec) => {
+          if (activePhotoMap.value[rec.id]) {
+            return activePhotoMap.value[rec.id]
+          }
+          const photos = getRecordPhotos(rec)
+          return photos.length > 0 ? photos[0] : ''
+        }
+
+        const setActivePhoto = (recordId, photoUrl) => {
+          activePhotoMap.value[recordId] = photoUrl
         }
 
         onMounted(() => {
@@ -625,7 +642,7 @@
           currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
           selectedMemberForDetail, memberHistoryRecords, activePreviewImage,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          getDDayText, getDDayBadgeStyle, getRecordPhotos, previewImage,
+          getDDayText, getDDayBadgeStyle, getRecordPhotos, getActivePhoto, setActivePhoto, previewImage,
           openMemberDetail, openAddModal, openEditModal, selectAllMembers,
           handleMultiplePhotosUpload, removePhoto, getMemberNamesByIds, saveRecord, deleteRecord
         }

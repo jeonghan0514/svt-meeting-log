@@ -109,7 +109,7 @@
         </section>
       </div>
 
-      <!-- 頁籤 2: 全部活動歷史頁面 (自動生成拼圖相片牆) -->
+      <!-- 頁籤 2: 全部活動歷史頁面 (無裁切 100% 完整照片拼圖) -->
       <div v-if="currentTab === 'history'">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
@@ -123,39 +123,39 @@
             class="bg-white rounded-3xl border border-pink-100/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
             
             <div>
-              <!-- 拼接相片牆 (Collage Grid) -->
+              <!-- 無裁切拼圖牆 (所有照片 100% object-contain 呈現) -->
               <div v-if="getRecordPhotos(rec).length > 0" class="w-full h-64 bg-pink-50/20 relative overflow-hidden border-b border-pink-50">
                 
-                <!-- 1 張圖：滿版大圖 -->
+                <!-- 1 張圖：完全不裁切 -->
                 <div v-if="getRecordPhotos(rec).length === 1" class="w-full h-full p-2 flex items-center justify-center">
                   <img :src="getRecordPhotos(rec)[0]" @click="previewImage(getRecordPhotos(rec)[0])" class="max-w-full max-h-full object-contain rounded-xl shadow-xs cursor-pointer hover:opacity-95">
                 </div>
 
-                <!-- 2 張圖：雙欄拼接 -->
-                <div v-else-if="getRecordPhotos(rec).length === 2" class="w-full h-full grid grid-cols-2 gap-1 p-1 bg-pink-50/40">
-                  <div v-for="(img, idx) in getRecordPhotos(rec)" :key="idx" class="w-full h-full overflow-hidden rounded-lg bg-white flex items-center justify-center">
-                    <img :src="img" @click="previewImage(img)" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform">
+                <!-- 2 張圖：左右無裁切併排 -->
+                <div v-else-if="getRecordPhotos(rec).length === 2" class="w-full h-full grid grid-cols-2 gap-1.5 p-2 bg-pink-50/30">
+                  <div v-for="(img, idx) in getRecordPhotos(rec)" :key="idx" class="w-full h-full overflow-hidden rounded-xl bg-white/80 p-1 border border-pink-100/50 flex items-center justify-center">
+                    <img :src="img" @click="previewImage(img)" class="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90">
                   </div>
                 </div>
 
-                <!-- 3 張圖：左 1 大、右 2 小拼接 -->
-                <div v-else-if="getRecordPhotos(rec).length === 3" class="w-full h-full grid grid-cols-2 gap-1 p-1 bg-pink-50/40">
-                  <div class="w-full h-full overflow-hidden rounded-lg bg-white flex items-center justify-center">
-                    <img :src="getRecordPhotos(rec)[0]" @click="previewImage(getRecordPhotos(rec)[0])" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform">
+                <!-- 3 張圖：左 1 大、右 2 小無裁切併排 -->
+                <div v-else-if="getRecordPhotos(rec).length === 3" class="w-full h-full grid grid-cols-2 gap-1.5 p-2 bg-pink-50/30">
+                  <div class="w-full h-full overflow-hidden rounded-xl bg-white/80 p-1 border border-pink-100/50 flex items-center justify-center">
+                    <img :src="getRecordPhotos(rec)[0]" @click="previewImage(getRecordPhotos(rec)[0])" class="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90">
                   </div>
-                  <div class="grid grid-rows-2 gap-1 w-full h-full">
-                    <div v-for="(img, idx) in getRecordPhotos(rec).slice(1, 3)" :key="idx" class="w-full h-full overflow-hidden rounded-lg bg-white flex items-center justify-center">
-                      <img :src="img" @click="previewImage(img)" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform">
+                  <div class="grid grid-rows-2 gap-1.5 w-full h-full">
+                    <div v-for="(img, idx) in getRecordPhotos(rec).slice(1, 3)" :key="idx" class="w-full h-full overflow-hidden rounded-xl bg-white/80 p-1 border border-pink-100/50 flex items-center justify-center">
+                      <img :src="img" @click="previewImage(img)" class="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90">
                     </div>
                   </div>
                 </div>
 
-                <!-- 4 張及以上：四格 2x2 拍立得拼圖牆 -->
-                <div v-else class="w-full h-full grid grid-cols-2 grid-rows-2 gap-1 p-1 bg-pink-50/40 relative">
-                  <div v-for="(img, idx) in getRecordPhotos(rec).slice(0, 4)" :key="idx" class="w-full h-full overflow-hidden rounded-lg bg-white relative flex items-center justify-center">
-                    <img :src="img" @click="previewImage(img)" class="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform">
-                    <!-- 若大於 4 張，第 4 格顯示 +N -->
-                    <div v-if="idx === 3 && getRecordPhotos(rec).length > 4" @click="previewImage(getRecordPhotos(rec)[3])" class="absolute inset-0 bg-black/50 text-white font-bold text-lg flex items-center justify-center backdrop-blur-xs cursor-pointer">
+                <!-- 4 張及以上：四格無裁切拼圖 -->
+                <div v-else class="w-full h-full grid grid-cols-2 grid-rows-2 gap-1.5 p-2 bg-pink-50/30 relative">
+                  <div v-for="(img, idx) in getRecordPhotos(rec).slice(0, 4)" :key="idx" class="w-full h-full overflow-hidden rounded-xl bg-white/80 p-1 border border-pink-100/50 relative flex items-center justify-center">
+                    <img :src="img" @click="previewImage(img)" class="max-w-full max-h-full object-contain cursor-pointer hover:opacity-90">
+                    <!-- 若大於 4 張，第 4 格顯示 +N 提示 -->
+                    <div v-if="idx === 3 && getRecordPhotos(rec).length > 4" @click="previewImage(getRecordPhotos(rec)[3])" class="absolute inset-0 bg-black/40 text-white font-bold text-sm flex items-center justify-center rounded-xl backdrop-blur-xs cursor-pointer">
                       +{{ getRecordPhotos(rec).length - 4 }}
                     </div>
                   </div>
@@ -260,11 +260,11 @@
 
           <!-- 多照片上傳區 (建議 1~4 張) -->
           <div>
-            <label class="block text-xs font-bold text-gray-600 mb-1">活動照片/海報/票根 (上傳多張自動生成拼圖)</label>
+            <label class="block text-xs font-bold text-gray-600 mb-1">活動照片/海報/票根 (上傳多張自動生成無裁切拼圖)</label>
             <input type="file" @change="handleMultiplePhotosUpload" accept="image/*" multiple class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100" />
             
             <div v-if="newRecord.photos.length > 0" class="mt-2 flex gap-2 overflow-x-auto p-2 bg-gray-50 rounded-xl border border-gray-200">
-              <div v-for="(p, i) in newRecord.photos" :key="i" class="w-20 h-20 flex-shrink-0 relative bg-white rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center">
+              <div v-for="(p, i) in newRecord.photos" :key="i" class="w-20 h-20 flex-shrink-0 relative bg-white rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center p-1">
                 <img :src="p" class="max-w-full max-h-full object-contain">
                 <button @click="removePhoto(i)" class="absolute top-0.5 right-0.5 bg-black/70 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">✕</button>
               </div>
@@ -351,7 +351,7 @@
               <p class="text-[11px] text-gray-400 mt-0.5">📅 {{ rec.date }}</p>
 
               <div v-if="getRecordPhotos(rec).length > 0" class="mt-2 flex gap-1.5 overflow-x-auto pb-1">
-                <img v-for="(p, idx) in getRecordPhotos(rec)" :key="idx" :src="p" @click="previewImage(p)" class="w-16 h-16 object-cover rounded-lg border border-gray-200 cursor-pointer">
+                <img v-for="(p, idx) in getRecordPhotos(rec)" :key="idx" :src="p" @click="previewImage(p)" class="w-16 h-16 object-contain bg-white rounded-lg border border-gray-200 cursor-pointer p-0.5">
               </div>
 
               <p v-if="rec.note" class="text-xs text-gray-600 mt-2 bg-white p-2 rounded-xl border border-gray-100">

@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
-  <!-- 載入 Firebase SDK (Compat 版本) -->
+  <!-- 載入 Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
@@ -18,17 +18,17 @@
     <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-pink-100 shadow-sm">
       <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-2">
-          <span class="text-2xl animate-bounce">💎</span>
-          <h1 class="text-xl font-bold bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">
+          <span class="text-2xl">💎</span>
+          <h1 class="text-xl font-bold bg-gradient-to-r from-pink-400 to-blue-400 bg-clip-text text-transparent">
             SVT Meeting Log
           </h1>
           <span v-if="loading" class="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full animate-pulse">☁️ 同步中...</span>
-          <span v-else class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">☁️ Firebase 雲端連線</span>
+          <span v-else class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full">☁️ Firebase 雲端連線</span>
         </div>
         
         <button 
           @click="openAddModal"
-          class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer transform hover:scale-105 active:scale-95">
+          class="bg-gradient-to-r from-pink-400 to-blue-400 hover:opacity-90 text-white px-4 py-2 rounded-full font-medium shadow-md transition-all text-sm flex items-center gap-1 cursor-pointer">
           <span>✨ 新增紀錄</span>
         </button>
       </div>
@@ -69,11 +69,11 @@
         </section>
 
         <div class="flex justify-between items-center mb-4">
-          <h2 class="font-bold text-gray-700 text-lg flex items-center gap-1.5">
+          <h2 class="font-bold text-gray-700 text-lg flex items-center gap-1">
             <span>成員見面榜</span>
-            <span class="text-xs font-normal text-gray-400">(點擊查看詳情)</span>
+            <span class="text-xs text-gray-400 font-normal">（點擊卡片看獨家歷程）</span>
           </h2>
-          <select v-model="sortBy" class="bg-white border border-gray-200 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 shadow-sm">
+          <select v-model="sortBy" class="bg-white border border-gray-200 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300">
             <option value="age">依年齡排序</option>
             <option value="count">依見面次數 (高→低)</option>
           </select>
@@ -83,23 +83,24 @@
           <div 
             v-for="member in sortedMembers" 
             :key="member.id"
+            @click="openMemberDetail(member)"
             :class="[
-              'bg-white rounded-2xl p-4 border transition-all duration-300 relative overflow-hidden flex flex-col items-center justify-between shadow-sm',
+              'bg-white rounded-2xl p-4 border transition-all duration-300 relative overflow-hidden flex flex-col items-center justify-between shadow-sm cursor-pointer',
               member.count > 0 ? 'border-pink-200 hover:shadow-md hover:-translate-y-1' : 'border-gray-100 opacity-60 grayscale hover:grayscale-0'
             ]"
           >
-            <div class="absolute top-2 right-2 bg-gradient-to-r from-pink-400 to-pink-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            <div class="absolute top-2 right-2 bg-pink-100 text-pink-600 text-xs font-bold px-2 py-0.5 rounded-full">
               {{ member.count }} 次
             </div>
-            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-300 via-purple-300 to-blue-300 flex items-center justify-center text-xl font-bold text-white mb-2 shadow-inner border-2 border-white">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-pink-200 to-blue-200 flex items-center justify-center text-xl font-bold text-white mb-2 shadow-inner">
               {{ member.name }}
             </div>
             <div class="text-center">
               <h3 class="font-bold text-gray-800 text-base">{{ member.name }}</h3>
-              <p class="text-[11px] text-gray-400 font-medium">{{ member.englishName }}</p>
+              <p class="text-xs text-gray-400">{{ member.englishName }}</p>
             </div>
-            <div class="mt-3 w-full text-center bg-gray-50 py-1 px-2 rounded-lg">
-              <span v-if="member.count > 0" class="text-[10px] text-pink-600 font-medium block truncate">
+            <div class="mt-3 w-full text-center">
+              <span v-if="member.count > 0" class="text-[10px] text-pink-500 font-medium block truncate">
                 📍 {{ member.lastMetDate || '尚無紀錄' }}
               </span>
               <span v-else class="text-[10px] text-gray-400 block">尚未解鎖</span>
@@ -112,72 +113,57 @@
       <div v-if="currentTab === 'history'">
         <div class="flex justify-between items-center mb-4">
           <h2 class="font-bold text-gray-700 text-lg">活動歷史紀錄</h2>
-          <span class="text-xs text-gray-400 bg-white px-2.5 py-1 rounded-full border border-gray-100">共 {{ records.length }} 筆見面回憶</span>
+          <span class="text-xs text-gray-400">共 {{ records.length }} 筆見面回憶</span>
         </div>
 
-        <div v-if="records.length > 0" class="space-y-5">
+        <div v-if="records.length > 0" class="space-y-4">
           <div 
             v-for="rec in sortedRecords" 
             :key="rec.id" 
-            class="bg-white rounded-3xl border border-pink-100/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col md:flex-row relative">
+            class="bg-white rounded-2xl p-5 border border-pink-100 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-4">
             
-            <!-- 活動類型側邊顏色標籤 -->
-            <div :class="['w-full md:w-2 h-2 md:h-auto flex-shrink-0', getTypeColor(rec.type)]"></div>
-
-            <!-- 海報/照片區域：優化長方形海報完整顯示 (無裁切) -->
-            <div v-if="rec.photo" class="w-full md:w-52 bg-gray-900/5 flex items-center justify-center p-3 flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-100">
-              <div class="relative w-full h-64 md:h-60 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center bg-gray-100">
-                <img :src="rec.photo" alt="活動海報" class="max-w-full max-h-full object-contain rounded-xl drop-shadow-md">
-              </div>
+            <!-- 海報/照片區域：淡色無裁切呈現 -->
+            <div v-if="rec.photo" class="w-full md:w-48 bg-pink-50/30 rounded-xl overflow-hidden p-2 flex items-center justify-center flex-shrink-0 border border-pink-50">
+              <img :src="rec.photo" alt="活動海報" class="max-w-full max-h-56 object-contain rounded-lg">
             </div>
 
-            <!-- 活動文字內容區域：密實飽滿排版 -->
-            <div class="flex-grow p-5 flex flex-col justify-between space-y-4">
+            <div class="flex-grow flex flex-col justify-between">
               <div>
-                <!-- 標題與類型 -->
-                <div class="flex justify-between items-start gap-3">
-                  <h3 class="font-bold text-gray-800 text-xl tracking-tight leading-snug">{{ rec.title }}</h3>
-                  <span :class="['text-xs px-3 py-1 rounded-full font-bold whitespace-nowrap shadow-sm', getTypeBadgeStyle(rec.type)]">
+                <div class="flex justify-between items-start gap-2">
+                  <h3 class="font-bold text-gray-800 text-lg">{{ rec.title }}</h3>
+                  <span class="bg-pink-100 text-pink-600 text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap">
                     {{ rec.type }}
                   </span>
                 </div>
                 
-                <!-- 日期 -->
-                <p class="text-xs text-gray-500 font-medium mt-1.5 flex items-center gap-1.5">
-                  <span class="bg-gray-100 px-2 py-0.5 rounded-md text-gray-600">📅 {{ rec.date }}</span>
+                <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                  <span>📅 {{ rec.date }}</span>
                 </p>
 
-                <!-- 成員 Badge 區域 -->
-                <div class="mt-4 bg-pink-50/50 p-3 rounded-2xl border border-pink-100/50">
-                  <p class="text-[11px] font-bold text-pink-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <span>見到的成員</span>
-                    <span class="text-pink-300">({{ rec.selectedMemberIds ? rec.selectedMemberIds.length : 0 }}人)</span>
-                  </p>
-                  <div class="flex flex-wrap gap-1.5">
+                <div class="mt-3">
+                  <p class="text-xs font-bold text-gray-500 mb-1">見到的成員：</p>
+                  <div class="flex flex-wrap gap-1">
                     <span 
                       v-for="mName in getMemberNamesByIds(rec.selectedMemberIds)" 
                       :key="mName" 
-                      class="bg-white text-gray-700 border border-pink-200 text-xs px-2.5 py-1 rounded-xl font-bold shadow-2xs flex items-center gap-1">
-                      <span class="w-1.5 h-1.5 rounded-full bg-pink-400"></span>
+                      class="bg-blue-50 text-blue-600 border border-blue-100 text-xs px-2 py-0.5 rounded-md font-medium">
                       {{ mName }}
                     </span>
                   </div>
                 </div>
 
-                <!-- 筆記心得區域 -->
-                <div v-if="rec.note" class="mt-3 text-sm text-gray-600 bg-gray-50/80 p-3.5 rounded-2xl border border-gray-100 whitespace-pre-line leading-relaxed">
-                  <p class="text-[10px] font-bold text-gray-400 mb-1">座位 / 心得筆記：</p>
+                <p v-if="rec.note" class="mt-3 text-sm text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100 whitespace-pre-line">
                   {{ rec.note }}
-                </div>
+                </p>
               </div>
 
-              <!-- 操作按鈕區 -->
-              <div class="flex justify-end gap-3 pt-2 border-t border-gray-100/80">
-                <button @click="openEditModal(rec)" class="text-xs text-blue-500 hover:text-blue-700 font-bold hover:underline flex items-center gap-1 px-2 py-1 bg-blue-50/50 rounded-lg">
-                  ✏️ 編輯內容
+              <!-- 按鈕區：編輯與刪除 -->
+              <div class="mt-3 flex justify-end gap-3 border-t border-gray-50 pt-2">
+                <button @click="openEditModal(rec)" class="text-xs text-blue-500 hover:text-blue-700 font-medium hover:underline flex items-center gap-0.5">
+                  ✏️ 編輯
                 </button>
-                <button @click="deleteRecord(rec.id)" class="text-xs text-red-400 hover:text-red-600 font-bold hover:underline flex items-center gap-1 px-2 py-1 bg-red-50/50 rounded-lg">
-                  🗑️ 刪除紀錄
+                <button @click="deleteRecord(rec.id)" class="text-xs text-red-400 hover:text-red-600 font-medium hover:underline flex items-center gap-0.5">
+                  🗑️ 刪除
                 </button>
               </div>
             </div>
@@ -185,9 +171,9 @@
           </div>
         </div>
 
-        <div v-else class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-gray-200 shadow-sm">
+        <div v-else class="text-center py-16 bg-white/60 rounded-3xl border border-dashed border-gray-200">
           <p class="text-4xl mb-2">💎</p>
-          <p class="text-gray-500 font-medium text-sm">還沒有新增任何紀錄，點擊右上角新增吧！</p>
+          <p class="text-gray-500 font-medium text-sm">還沒有新增任何紀錄，或資料載入中...</p>
         </div>
       </div>
 
@@ -229,9 +215,9 @@
             <label class="block text-xs font-bold text-gray-600 mb-1">活動現場海報/照片</label>
             <input type="file" @change="handlePhotoUpload" accept="image/*" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-600 hover:file:bg-pink-100" />
             
-            <div v-if="newRecord.photo" class="mt-2 w-full h-48 rounded-2xl overflow-hidden bg-gray-900/5 p-2 border border-gray-200 relative flex items-center justify-center">
-              <img :src="newRecord.photo" class="max-w-full max-h-full object-contain rounded-xl">
-              <button @click="newRecord.photo = ''" class="absolute top-2 right-2 bg-black/70 text-white text-xs px-2.5 py-1 rounded-full font-bold hover:bg-black">移除照片</button>
+            <div v-if="newRecord.photo" class="mt-2 w-full h-40 rounded-xl overflow-hidden bg-pink-50/30 p-2 border border-gray-200 relative flex items-center justify-center">
+              <img :src="newRecord.photo" class="max-w-full max-h-full object-contain rounded-lg">
+              <button @click="newRecord.photo = ''" class="absolute top-1 right-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">移除照片</button>
             </div>
           </div>
 
@@ -271,10 +257,83 @@
       </div>
     </div>
 
+    <!-- 成員獨家歷史 Timeline 彈窗 (Member Detail Modal) -->
+    <div v-if="selectedMemberForDetail" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-pink-100 max-h-[85vh] overflow-y-auto">
+        
+        <!-- 成員 Header 資訊 -->
+        <div class="flex items-center justify-between pb-4 border-b border-pink-100">
+          <div class="flex items-center gap-3">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-200 to-blue-200 flex items-center justify-center text-lg font-bold text-white shadow-inner">
+              {{ selectedMemberForDetail.name }}
+            </div>
+            <div>
+              <h3 class="font-bold text-xl text-gray-800">{{ selectedMemberForDetail.name }}</h3>
+              <p class="text-xs text-gray-400">{{ selectedMemberForDetail.englishName }}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full block mb-1">
+              共見面 {{ selectedMemberForDetail.count }} 次
+            </span>
+            <span class="text-[10px] text-gray-400 block" v-if="selectedMemberForDetail.lastMetDate">
+              最近：{{ selectedMemberForDetail.lastMetDate }}
+            </span>
+          </div>
+        </div>
+
+        <!-- 歷史時間軸 -->
+        <div class="mt-4">
+          <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">與 {{ selectedMemberForDetail.name }} 的見面歷程</h4>
+
+          <div v-if="memberHistoryRecords.length > 0" class="space-y-3 relative border-l-2 border-pink-100 pl-4 ml-2">
+            <div 
+              v-for="rec in memberHistoryRecords" 
+              :key="rec.id" 
+              class="relative bg-gray-50 p-3.5 rounded-2xl border border-gray-100">
+              
+              <!-- 時間軸點點 -->
+              <span class="absolute -left-[23px] top-4 w-3 h-3 rounded-full bg-pink-400 border-2 border-white shadow-sm"></span>
+
+              <div class="flex justify-between items-start">
+                <h5 class="font-bold text-gray-800 text-sm">{{ rec.title }}</h5>
+                <span class="bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded-full font-medium">
+                  {{ rec.type }}
+                </span>
+              </div>
+
+              <p class="text-[11px] text-gray-400 mt-0.5">📅 {{ rec.date }}</p>
+
+              <!-- 海報照 -->
+              <div v-if="rec.photo" class="mt-2 w-full h-32 bg-white rounded-xl p-1 border border-gray-100 flex items-center justify-center">
+                <img :src="rec.photo" class="max-w-full max-h-full object-contain rounded-lg">
+              </div>
+
+              <p v-if="rec.note" class="text-xs text-gray-600 mt-2 bg-white p-2 rounded-xl border border-gray-100">
+                {{ rec.note }}
+              </p>
+            </div>
+          </div>
+
+          <div v-else class="text-center py-8 text-gray-400 text-xs">
+            尚未有與 {{ selectedMemberForDetail.name }} 的見面紀錄 💎
+          </div>
+        </div>
+
+        <!-- 關閉按鈕 -->
+        <div class="mt-6 flex justify-end">
+          <button @click="selectedMemberForDetail = null" class="px-5 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200">
+            關閉窗口
+          </button>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <script>
-    // 代入你的專屬 Firebase Config
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyBjblnVM2Co7-dGsQNEZgzCg7zcKxNc7GY",
       authDomain: "svt-meeting-log.firebaseapp.com",
@@ -284,7 +343,6 @@
       appId: "1:462910127620:web:cc7aa5b27c0e52b74fbf51"
     };
 
-    // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
@@ -316,6 +374,7 @@
         const isEditMode = ref(false)
         const loading = ref(false)
         const submitting = ref(false)
+        const selectedMemberForDetail = ref(null)
 
         const newRecord = ref({
           id: null,
@@ -375,29 +434,15 @@
           return [...records.value].sort((a, b) => new Date(b.date) - new Date(a.date))
         })
 
-        // 活動類型的視覺樣式處理
-        const getTypeColor = (type) => {
-          switch(type) {
-            case '演唱會': return 'bg-pink-400'
-            case '見面會': return 'bg-blue-400'
-            case '接送機': return 'bg-purple-400'
-            case '站台': return 'bg-amber-400'
-            case '偶遇': return 'bg-emerald-400'
-            case '展覽/大型活動': return 'bg-indigo-400'
-            default: return 'bg-gray-400'
-          }
-        }
+        // 該成員的歷史紀錄
+        const memberHistoryRecords = computed(() => {
+          if (!selectedMemberForDetail.value) return []
+          const mId = selectedMemberForDetail.value.id
+          return sortedRecords.value.filter(r => r.selectedMemberIds && r.selectedMemberIds.includes(mId))
+        })
 
-        const getTypeBadgeStyle = (type) => {
-          switch(type) {
-            case '演唱會': return 'bg-pink-100 text-pink-600'
-            case '見面會': return 'bg-blue-100 text-blue-600'
-            case '接送機': return 'bg-purple-100 text-purple-600'
-            case '站台': return 'bg-amber-100 text-amber-700'
-            case '偶遇': return 'bg-emerald-100 text-emerald-700'
-            case '展覽/大型活動': return 'bg-indigo-100 text-indigo-600'
-            default: return 'bg-gray-100 text-gray-600'
-          }
+        const openMemberDetail = (member) => {
+          selectedMemberForDetail.value = member
         }
 
         const openAddModal = () => {
@@ -508,8 +553,9 @@
 
         return {
           currentTab, members, records, sortBy, showAddModal, isEditMode, newRecord, loading, submitting,
+          selectedMemberForDetail, memberHistoryRecords,
           totalMeetCount, unlockedMembersCount, sortedMembers, sortedRecords,
-          getTypeColor, getTypeBadgeStyle, openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
+          openMemberDetail, openAddModal, openEditModal, selectAllMembers, handlePhotoUpload, getMemberNamesByIds, saveRecord, deleteRecord
         }
       }
     }).mount('#app')
